@@ -90,7 +90,6 @@ model_df<-data.frame(model,
                      model_2,
                      model_3,
                      model_4,
-                     model_5,
-                     model_6)
+                     model_5)
 
 write_xlsx(model_df, "model.xlsx")
