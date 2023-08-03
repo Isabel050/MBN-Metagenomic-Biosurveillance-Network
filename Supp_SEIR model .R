@@ -58,3 +58,26 @@ for(i in 1:length(Disease_Cases)){
   
 }
 names(model_df_aggregated) <- c("time",Disease_names)
+
+#Restructure for ggplot
+model_df2<-model_df_aggregated %>%
+  pivot_longer(!time, names_to = "Pathogen", values_to = "Cases_TTD")
+colnames(model_df2)[1]<-c("Days")
+
+#Plot Figure 4
+p<- ggplot() +
+  geom_line(data=model_df2, aes(y=Cases_TTD, x=Days, color=Pathogen), size=1.1,linetype=1)+
+  labs(x="Days", y="Infections")+
+  xlim(0,70)+
+  ylim(0,400)+
+  ggtitle("SEIR Model")
+
+p+ theme_gray()+
+  theme(axis.title.x = element_text(face="bold", size=15))+
+  theme(axis.title.y = element_text(face="bold", size=15))+
+  theme(title= element_text(face="bold", size=20))+
+  geom_hline(yintercept=79, linetype=5, color = "gray40", show.legend = TRUE, labs="30%")+
+  geom_hline(yintercept=46, linetype=5, color = "gray20", show.legend = TRUE, labs="30%")+
+  geom_hline(yintercept=33, linetype=5, color = "gray0", show.legend = TRUE, labs="30%")+
+  geom_hline(yintercept=238, linetype=5, color = "gray60", show.legend = TRUE, labs="30%")
+
