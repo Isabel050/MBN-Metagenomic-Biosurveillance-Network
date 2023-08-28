@@ -1,0 +1,404 @@
+---
+title: "ThreatNet Israel"
+author: "Meusel et al."
+output:
+  flexdashboard::flex_dashboard:
+    theme: 
+      version: 4
+      bootswatch: minty # We can set color themes!
+      #Also check out help on bs_themer
+    orientation: rows
+    source_code: embed
+# If we Output HTML, this allows Latex for the Documentation:  
+# mathjax: "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+runtime: shiny
+---
+
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(reshape2)
+require(deSolve)
+library(shiny)
+library(plotly)
+library(plyr)
+require("FinancialMath") # For NPV in costs
+library(flexdashboard)
+library(i18n) #Translations
+
+#Debug: getwd()
+
+# bslib::bs_themer() # <- This lets you look at themes and pick.
+
+# Not yet working, need to implement.
+#i18n <- Translator$new(automatic=TRUE)
+#i18n$set_translation_language("en")
+
+#We need the scenarios run in Montecarlo, unless that is done already.
+if(file.exists("Master_Frame_a.xlsx")){ScenariosRun=TRUE} else {ScenariosRun=FALSE}
+#Manual rerun instead: ScenariosRun=FALSE
+source("Montecarlo.r", local=TRUE)
+source("SEIR.r", local=TRUE)
+
+# Function Definitions
+
+#Import Data from xslx Generated earlier:
+Master_Frame_a <- read.xlsx("Master_Frame_a.xlsx")
+Master_Frame_b <- read.xlsx("Master_Frame_b.xlsx")
+#Master_Frame_c <- read.xlsx("Master_Frame_c.xlsx")
+Master_Frame_c <-Master_Frame_a %>%
+  pivot_longer(!c("Case","Cases_continuous"), names_to = "Coverage", values_to = "Cumulative_probability") 
+Master_Frame_c <- 
+  separate_wider_delim(Master_Frame_c, "Coverage", "_",
+                       names= c(NA, "HospPCT","DetectThreshold",NA))
+
+map=data.frame(HospPCT=Coverage_rates,Coverage_names)
+Master_Frame_c <- merge(Master_Frame_c,map)
+
+
+model_df<-data.frame(times)
+  for(i in 1:length(Disease_Cases)){
+    model <- ode(initial_state, times, SEIR, Disease_Cases[[i]]$params)
+    matplot(model, type="l", lty=1, main=paste("SEIR model",Disease_Cases[[i]]$name), xlab="Time")
+    legend <- colnames(model)[2:6]
+    model_df<-cbind(model_df,data.frame(model))
+  }
+
+  
+  #Get distinct names per case:
+  colnames(model_df) <- make.names(colnames(model_df), unique = TRUE)
+
+  #Group into cumulative infections
+  model_df_aggregated<-data.frame(times)
+  for(i in 1:length(Disease_Cases)){
+    case = i-1
+    if(case==0){
+      model_df_aggregated<-cbind(model_df_aggregated,model_df$I+model_df$R)
+    }
+    else{
+      model_df_aggregated<-cbind(model_df_aggregated,
+                                 get(paste0('I.',case), envir=as.environment(model_df)) +
+                                   get(paste0('R.',case), envir=as.environment(model_df))
+      )
+    }
+  }
+  names(model_df_aggregated) <- c("time",Disease_names)
+  colnames(model_df_aggregated)[1]<-c("Days")
+  
+
+# From Example to keep current data working.
+# Make some noisily increasing data
+set.seed(955)
+dat <- data.frame(cond = rep(c("A", "B"), each=10),
+                  xvar = 1:20 + rnorm(20,sd=3),
+                  yvar = 1:20 + rnorm(20,sd=3))
+```
+<!– 
+Data Manifest:
+
+
+–>
+
+
+Sidebar {.sidebar}
+=====================================
+
+### Inputs for Model
+
+```{r}
+   selectInput(inputId = "Disease_Scenario",
+               label = "Disease Scenario",
+               choices = Disease_names,
+               selected = "SARS",
+               multiple= TRUE
+              )
+   selectInput(inputId = "Coverage",
+               label = "Hospitals participating in Threatnet",
+               choices = Coverage_names,
+               selected = 2)
+   sliderInput(inputId = "Threshold",
+               label = "Detections needed to confirm disease",
+               min = 1,
+               max = 5,
+               value = 1,
+               step=2,
+               ticks=FALSE)
+   sliderInput(inputId = "Delay",
+               label = "Days needed to confirm result",
+               min = 1,
+               max = 5,
+               value = 1,
+               step=2,
+               ticks=FALSE)
+```
+
+Model Outputs
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+
+### Detection probability by number of infections
+
+```{r}
+
+#Need to sort so that the factors are in alphabetical order, to match the graph.
+
+# This doesn't HELP. ARGH!
+#map=data.frame(num=as.numeric(Master_Frame_c$HospPCT),HospPCT=Master_Frame_c$HospPCT,Cover=factor(Master_Frame_c$Coverage_names)) %>% distinct() %>% arrange(num)
+#Master_Frame_c=merge(Master_Frame_c,map)
+
+renderPlot({
+  
+    p2 <- ggplot() + 
+      geom_point(data=Master_Frame_c %>% filter(DetectThreshold==input$Threshold),
+                 aes(y=Cumulative_probability, x=Cases_continuous, color = Coverage_names),
+                 size=1) +
+      labs(x="Infections", y="Cumulative probability")+
+      xlim(0,100)+
+      geom_smooth(data=Master_Frame_c %>% filter(DetectThreshold==input$Threshold),
+                  formula=y ~ s(x, bs = "cs"), 
+                              aes(y=Cumulative_probability, 
+                                  x=Cases_continuous, group = Coverage_names), 
+                              method="gam",color="black",se=FALSE, 
+                              linetype=5, linewidth=1.3)
+     
+    p2 + theme_gray() +
+      theme(axis.title.x = element_text(face="bold", size=15))+
+      theme(axis.title.y = element_text(face="bold", size=15))+
+      theme(title= element_text(face="bold", size=20))+
+      theme(legend.position = c(0.8, 0.2)) +
+      #scale_color_discrete(labels=Coverage_names)+
+      geom_hline(yintercept=0.5, linetype=5, color = "gray40")+
+      geom_hline(yintercept=0.8, linetype=5, color = "gray20")+
+      geom_hline(yintercept=0.95, linetype=5, color = "gray0")
+  })
+```
+
+### Disease Outcomes
+
+```{r}
+  #For diseases, we needed to run the models (above,) rearrange and plot them.
+
+  Cases_to_Run <- reactive({Input$Disease_Scenario})
+  
+  #Restructure for ggplot
+  #model_df2 <- reactive({ #Switch what is in this depending on input data
+  model_df2 <- #For testing
+    model_df_aggregated %>%
+    pivot_longer(!Days, names_to = "Pathogen", values_to = "Cases_TTD") # %>%
+    # filter(Pathogen %in% c('SARS','MERS'))
+  # })
+  
+  
+  p3 <- renderPlot({ggplot() +
+      geom_line(data=model_df2 %>% filter(Pathogen %in% input$Disease_Scenario),
+                aes(y=Cases_TTD, x=Days, color=Pathogen), linewidth=1.1,linetype=1)+
+      labs(x="Days", y="Infections")+
+      xlim(0,70)+
+      ylim(0,400)+
+      ggtitle("SEIR Model") + theme_gray()+
+      theme(axis.title.x = element_text(face="bold", size=15))+
+      theme(axis.title.y = element_text(face="bold", size=15))+
+      theme(title= element_text(face="bold", size=20))
+  })
+  p3
+```
+
+Row
+-----------------------------------------------------------------------
+### Detection Probability by Disease
+
+```{r}
+  #model_df_aggregated is the disease number of cases by day
+  #Master_Frame_c is the detection time by number of cases
+  
+  #We need a new data frame with the levels from both DF.
+  
+
+  # Master_frame_c has HospPCT and DetectThreshold, plus merge variable Cases_continuous
+  # model_df_aggregated has Days and Cases per disease.
+  # Discretize model_df_aggregated case counts by rounding down:
+  model_df_aggregated_discrete <- data.frame(lapply(model_df_aggregated,floor))
+  #I only want the first day that there are X cases.
+  All_disease_mapping_table <- 0
+  #Disease Names with spaces, etc. get mangled, so:
+  corr_Disease_names = gsub(" ",".",gsub("-",".",Disease_names))
+  
+  # Add disease columns to Master_Frame_c.
+  for (name in corr_Disease_names){ # Which are columns in model_df_aggregated_discrete
+    #print(name) }
+    temp_table <- model_df_aggregated_discrete[,c('Days',name)]
+    names(temp_table)<-c('Day','Cases_continuous')
+    temp_table$Cases_continuous = temp_table$Cases_continuous
+    temp_table$Disease = name
+    if (length(All_disease_mapping_table)==1){
+      All_disease_mapping_table <- temp_table
+    } else {All_disease_mapping_table <- rbind(All_disease_mapping_table, temp_table)}
+  }
+  # But we need to offset by the delay!
+  #Do this within the graphing, or it needs a reactive DF, which is expensive!
+  
+    #Include only the first day with that many cases.
+    temp_2 <- All_disease_mapping_table %>% group_by(Cases_continuous, Disease) %>% filter(rank(Cases_continuous,ties.method="first")==1)
+    temp_2 <- data.frame(temp_2)
+    All_disease_mapping_table <- temp_2
+
+    
+    # At this point, we need to use colors EITHER to represent HospPCT *OR* Disease.
+    Disease_num <-reactive(match(input$Disease_Scenario[[1]]))
+
+    Master_Frame_c$HospPCT=factor(Master_Frame_c$HospPCT,levels=sort(unique(as.numeric(as.character(Master_Frame_c$HospPCT)))))
+
+renderPlot({
+  # We now need to add input$Delay to the All_disease_mapping_table!
+  All_disease_mapping_table$Day = All_disease_mapping_table$Day + input$Delay
+  #Also add a zero point, to fix the graph?
+  Zero_points = data.frame(Disease=gsub(" ",".",gsub("-",".",Disease_names)))
+  Zero_points$Day=0
+  Zero_points$Cases_continuous=0
+  All_disease_mapping_table=rbind(All_disease_mapping_table,Zero_points)
+  #print(All_disease_mapping_table[which(All_disease_mapping_table$Cases_continuous<2),]) 
+  
+  ggplot() + 
+        geom_point(data=inner_join(Master_Frame_c,
+                                   All_disease_mapping_table 
+                                   %>% filter(Disease==gsub(" ",".",gsub("-",".",input$Disease_Scenario[[1]]))))
+                   %>% filter(DetectThreshold==input$Threshold),
+                   aes(y=Cumulative_probability, x=Day, color=HospPCT, group = as.numeric(HospPCT)), size=1) +
+        labs(x="Day", y="Cumulative probability")+
+        xlim(0,100)+
+        geom_smooth(data=inner_join(Master_Frame_c,
+                                    All_disease_mapping_table
+                                    %>% filter(Disease==gsub(" ",".",gsub("-",".",input$Disease_Scenario[[1]])))) 
+                    %>% filter(DetectThreshold==input$Threshold),
+                    formula=y ~ s(x, bs = "cs"), 
+                    aes(y=Cumulative_probability, 
+                        x=Day, group = HospPCT),
+                    method="gam",color="black")+
+        ggtitle(input$Disease_Scenario[[1]])
+    })
+
+```
+
+### Cost versus Infections Graph
+
+```{r}
+Detect_Threshold_ForDate <- 0.95 # 50% Chance of Detection
+
+HospPCT=unique(as.character(Master_Frame_c$HospPCT))
+
+# Need to account for delay.
+# Done above in All_disease_mapping_table
+# But this table doesn't related to the disease, it's case counts only...
+# We want to graph day at first detection versus cost, I think?
+
+Case_Count_at_Detection <- data.frame(Master_Frame_c %>% group_by(DetectThreshold, HospPCT) %>% arrange(as.numeric(HospPCT)) %>%
+  filter(Cumulative_probability>=Detect_Threshold_ForDate) %>%
+  slice_min(Cumulative_probability,with_ties=FALSE))
+
+#Costs:
+#Just put the algebra in manually:
+# HospPCT=Now From Data Frame, pulled above.
+# Set in the Montecarlo.R script
+#n_Hosp was set in the MonteCarlo Script.
+#print(slice_head(Case_Count_at_Detection,n=2))
+
+HospPCT = as.character(sort(as.numeric(HospPCT)))
+map=data.frame(HospPCT,n_Hosp)
+#print(n_Hosp)
+#print(map)
+Case_Count_at_Detection=merge(Case_Count_at_Detection,map)
+
+Cost<-function(number){
+  #Costs per site:
+  Cost_Sequencers = 450000
+  Cost_Staff = 225000
+  Cost_Compute_Storage = 24000
+  Cost_Reagents_Yearly = 2360*365*2 # 2 Machines, both run 1x/day
+  Yearly_cost = Cost_Staff+Cost_Compute_Storage+Cost_Reagents_Yearly
+  Fixed_Cost = Cost_Sequencers
+  return(number*(NPV(cf0=Fixed_Cost,cf=rep(Yearly_cost,10),times=c(1:10),i=0.03)))
+}
+
+n_Hosp_c=as.character(n_Hosp)
+Overall_10y_Cost = sapply(as.numeric(n_Hosp),Cost) #Get the costs to graph.
+
+Cost_map=data.frame(n_Hosp,Overall_10y_Cost)
+Case_Count_at_Detection<- merge(Case_Count_at_Detection,Cost_map)
+
+#print(Case_Count_at_Detection)
+renderPlot({
+  ggplot()+ geom_point(data=Case_Count_at_Detection,
+                       aes(y=Overall_10y_Cost, x=Cases_continuous, color=DetectThreshold), size=1) +
+    labs(x="Cases At Detection", y="10-year Discounted Costs")+
+    geom_line(data=Case_Count_at_Detection,
+                aes(y=Overall_10y_Cost, x=Cases_continuous, group=DetectThreshold, color=DetectThreshold)
+                )+
+        scale_y_continuous(labels=scales::dollar_format(scale=0.000001, suffix="m",
+                                                    n.breaks=4))+
+    xlim(1000,0)+
+    ggtitle(paste("Costs and Number of Cases at First Detection with", scales::percent(Detect_Threshold_ForDate), "probability"))
+  })
+
+```
+
+More Graphs! (That don't work yet...)
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+### Detection by Disease for Different Hospital Coverage
+```{r}
+renderPlot({ggplot() + 
+     geom_point(data=inner_join(Master_Frame_c 
+                                %>% filter(HospPCT==Coverage_rates[match(input$Coverage,Coverage_names)]),
+                                All_disease_mapping_table ) 
+                %>% filter(DetectThreshold==input$Threshold),
+                        aes(y=Cumulative_probability, x=Day, color=Disease), size=1) +
+     labs(x="Day", y="Cumulative probability")+
+     xlim(0,100)+
+     geom_smooth(data=inner_join(Master_Frame_c 
+                                 %>% filter(HospPCT==Coverage_rates[match(input$Coverage,Coverage_names)]),
+                                 All_disease_mapping_table ) 
+                 %>% filter(DetectThreshold==input$Threshold),
+                 formula=y ~ s(x, bs = "cs"), 
+                 aes(y=Cumulative_probability, 
+                     x=Day, group = Disease),
+                 method="gam",color="black")+
+     ggtitle(paste(input$Coverage, "Detection Threshold:",input$Threshold))
+  })
+
+```
+
+Row
+-----------------------------------------------------------------------
+### Another Row
+
+Model Documentation
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+
+### Some Explanation
+This model is a rewritten adaptation of the Sharma et. al. Threat Net paper.
+<p>Sharma S, Pannu J, Chorlton S, Swett JL, Ecker DJ. 
+<br />Threat Net: A Metagenomic Surveillance Network for Biothreat Detection and Early Warning.
+<br />Health Secur. 2023 Jun 27. doi: 10.1089/hs.2022.0160."))
+
+
+Testing LaTeX -
+
+* test 1 :  $x$
+* test 2 : \(x\
+
+$\begin{tikzpicture}[node distance=2cm, auto,
+>=Latex,every node/.append style={align=center},
+int/.style={draw, minimum size=1.6cm}]
+\node [int] (a) {$S$};
+\node (b) [left of=a,node distance=2cm, coordinate] {a};
+\end{tikzpicture}$
+
+}
