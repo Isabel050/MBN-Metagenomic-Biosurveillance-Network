@@ -381,24 +381,5 @@ Model Documentation
 
 Row
 -----------------------------------------------------------------------
-
-### Some Explanation
-This model is a rewritten adaptation of the Sharma et. al. Threat Net paper.
-<p>Sharma S, Pannu J, Chorlton S, Swett JL, Ecker DJ. 
-<br />Threat Net: A Metagenomic Surveillance Network for Biothreat Detection and Early Warning.
-<br />Health Secur. 2023 Jun 27. doi: 10.1089/hs.2022.0160."))
-
-
-Testing LaTeX -
-
-* test 1 :  $x$
-* test 2 : \(x\
-
-$\begin{tikzpicture}[node distance=2cm, auto,
->=Latex,every node/.append style={align=center},
-int/.style={draw, minimum size=1.6cm}]
-\node [int] (a) {$S$};
-\node (b) [left of=a,node distance=2cm, coordinate] {a};
-\end{tikzpicture}$
-
-}
+```{r test, child="Documentation.RMD", eval=TRUE, local=TRUE}
+```
