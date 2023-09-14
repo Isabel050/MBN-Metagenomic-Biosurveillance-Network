@@ -29,32 +29,44 @@ library(i18n) #Translations
 
 #Debug: getwd()
 
+Slow=TRUE
+#Slow=FALSE
+if(Slow) { # comment out entire setup, in favor of loading image.
+# This is good for loading speed, but we need to figure out what to do in production version.
+
+  
 # bslib::bs_themer() # <- This lets you look at themes and pick.
 
 # Not yet working, need to implement.
 #i18n <- Translator$new(automatic=TRUE)
 #i18n$set_translation_language("en")
-
+  
 #We need the scenarios run in Montecarlo, unless that is done already.
 if(file.exists("Master_Frame_a.xlsx")){ScenariosRun=TRUE} else {ScenariosRun=FALSE}
 #Manual rerun instead: ScenariosRun=FALSE
-source("Montecarlo.r", local=TRUE)
+source("Costs.r", local=TRUE)
+source("Montecarlo.r", local=TRUE) #Note: Uses an output from costs
 source("SEIR.r", local=TRUE)
 
 # Function Definitions
 
 #Import Data from xslx Generated earlier:
 Master_Frame_a <- read.xlsx("Master_Frame_a.xlsx")
-Master_Frame_b <- read.xlsx("Master_Frame_b.xlsx")
-#Master_Frame_c <- read.xlsx("Master_Frame_c.xlsx")
-Master_Frame_c <-Master_Frame_a %>%
+MonteCarloData <-Master_Frame_a %>%
   pivot_longer(!c("Case","Cases_continuous"), names_to = "Coverage", values_to = "Cumulative_probability") 
-Master_Frame_c <- 
-  separate_wider_delim(Master_Frame_c, "Coverage", "_",
+MonteCarloData <- 
+  separate_wider_delim(MonteCarloData, "Coverage", "_",
                        names= c(NA, "HospPCT","DetectThreshold",NA))
 
+# Master_Frame_Full <- read.xlsx("Master_Frame_Full.xlsx") # Adds 10-15 seconds to loading!
+
+Master_Frame_Full <- Master_Frame_Full %>%
+  pivot_longer(!c("Case","Cases_continuous"), names_to = "Coverage", values_to = "Cumulative_probability") %>% separate_wider_delim("Coverage", "_",
+                       names= c(NA, "HospPCT","DetectThreshold",NA))
+
+
 map=data.frame(HospPCT=Coverage_rates,Coverage_names)
-Master_Frame_c <- merge(Master_Frame_c,map)
+MonteCarloData <- merge(MonteCarloData,map)
 
 
 model_df<-data.frame(times)
@@ -86,19 +98,81 @@ model_df<-data.frame(times)
   names(model_df_aggregated) <- c("time",Disease_names)
   colnames(model_df_aggregated)[1]<-c("Days")
   
+  #Restructure for ggplot
+  model_df_agg_longer <- #For testing
+    model_df_aggregated %>%
+    pivot_longer(!Days, names_to = "Pathogen", values_to = "Cases_TTD")
+  
+  #model_df_aggregated is the disease number of cases by day
+  #MonteCarloData is the detection time by number of cases in hospitals for detection
+  
+  #We need a new data frame with the levels from both DF.
+  
+  # MonteCarloData has HospPCT and DetectThreshold, plus merge variable Cases_continuous
+  # model_df_aggregated has Days and Cases per disease.
+  # Discretize model_df_aggregated case counts by rounding down:
+  model_df_aggregated_discrete <- data.frame(lapply(model_df_aggregated,floor))
+  #I only want the first day that there are X cases.
+  All_disease_mapping_table <- 0
+  #Disease Names with spaces, etc. get mangled, so:
+  corr_Disease_names = gsub(" ",".",gsub("-",".",Disease_names))
+  
+  # Add disease columns to MonteCarloData.
+  for (name in corr_Disease_names){ # Which are columns in model_df_aggregated_discrete
+    #print(name) }
+    temp_table <- model_df_aggregated_discrete[,c('Days',name)]
+    names(temp_table)<-c('Day','Cases_continuous')
+    temp_table$Cases_continuous = temp_table$Cases_continuous
+    temp_table$Disease = name
+    if (length(All_disease_mapping_table)==1){
+      All_disease_mapping_table <- temp_table
+    } else {All_disease_mapping_table <- rbind(All_disease_mapping_table, temp_table)}
+  }
+  # But we need to offset by the delay!
+  #Do this within the graphing, or it needs a reactive DF, which is expensive!
+  
+    #Include only the first day with that many cases.
+    temp_2 <- All_disease_mapping_table %>% group_by(Cases_continuous, Disease) %>% filter(rank(Cases_continuous,ties.method="first")==1)
+    temp_2 <- data.frame(temp_2)
+    All_disease_mapping_table <- temp_2
+    
 
-# From Example to keep current data working.
-# Make some noisily increasing data
-set.seed(955)
-dat <- data.frame(cond = rep(c("A", "B"), each=10),
-                  xvar = 1:20 + rnorm(20,sd=3),
-                  yvar = 1:20 + rnorm(20,sd=3))
-```
-<!– 
+    #Set detection threshold for graphs
+    Detect_Threshold_ForDate <- 0.95 # 95% Chance of Detection
+
+Case_Count_at_Detection <- data.frame(MonteCarloData %>% group_by(DetectThreshold, HospPCT) %>% arrange(as.numeric(HospPCT)) %>%
+filter(Cumulative_probability>=Detect_Threshold_ForDate) %>%
+slice_min(Cumulative_probability,with_ties=FALSE))
+
+Case_Count_at_Detection_AllValues <- data.frame(Master_Frame_Full %>% group_by(DetectThreshold, HospPCT) %>% arrange(as.numeric(HospPCT)) %>%
+  filter(Cumulative_probability>=Detect_Threshold_ForDate) %>%
+  slice_min(Cumulative_probability,with_ties=FALSE))
+    
+Case_Count_at_Detection_AllValues <- merge(Case_Count_at_Detection_AllValues,Full_Cost_Map)
+
+if (FALSE) {"
 Data Manifest:
 
+- MonteCarloData is the results of the Monte-carlo Simulation for specified percentages of hospitals (Previously named Master_Frame_a. Has Coverage_names: Titles for 'Top N' )
+- Master_Frame_Full is the same, for all percentages, to use for per-hospital selection
+- Columns: HospPCT, Cases_continuous, DetectThreshold, Cumulative_probability
+- Note: HospPCT can be mapped to Top N with Full_Cost_Map
 
-–>
+- Hospital_visitors is the number of visitors per hospital per year, and percentages for 2021, which is the year used. (This is used for the cost mapping.)
+
+- Full_Cost_Map is the number of 'Top N' hospitals, with corresponding cost / HospPCT.
+
+- model_df is the raw SEIR model outputs per disease.
+- model_df_aggregated_discrete is the cumulative number of clinical cases (I+R) per disease, discretized to whole numbers of cases.
+Columns: Days, [Disease Name]
+
+
+"}
+save.image(file='ShinyApp_SetupRun.RData')
+}
+load('ShinyApp_SetupRun.RData')    
+```
+
 
 
 Sidebar {.sidebar}
@@ -110,7 +184,7 @@ Sidebar {.sidebar}
    selectInput(inputId = "Disease_Scenario",
                label = "Disease Scenario",
                choices = Disease_names,
-               selected = "SARS",
+               selected = c("SARS-CoV-2","Seasonal Flu","Pandemic 1918 Flu","SARS-CoV-2 Omicron"),
                multiple= TRUE
               )
    selectInput(inputId = "Coverage",
@@ -131,6 +205,17 @@ Sidebar {.sidebar}
                value = 1,
                step=2,
                ticks=FALSE)
+      radioButtons(inputId = "HospitalizationLag",
+               label = "Time from infection until hospitalization",
+               choiceNames = "2 Weeks",
+               choiceValues = 14 
+               ) #This is hardcoded below because it breaks otherwise. (What is the input type, maybe?)
+      selectInput(inputId = "HospitalList",
+               label = "List of Hospitals (Unused)",
+               choices = Hospital_visitors$Hospital,
+               selected = 1,
+               multiple= TRUE
+              )
 ```
 
 Model Outputs
@@ -139,25 +224,26 @@ Model Outputs
 Row
 -----------------------------------------------------------------------
 
-### Detection probability by number of infections
+### Detection probability by number of hospitalized cases
 
 ```{r}
 
 #Need to sort so that the factors are in alphabetical order, to match the graph.
 
 # This doesn't HELP. ARGH!
-#map=data.frame(num=as.numeric(Master_Frame_c$HospPCT),HospPCT=Master_Frame_c$HospPCT,Cover=factor(Master_Frame_c$Coverage_names)) %>% distinct() %>% arrange(num)
-#Master_Frame_c=merge(Master_Frame_c,map)
+#map=data.frame(num=as.numeric(MonteCarloData$HospPCT),HospPCT=MonteCarloData$HospPCT,Cover=factor(MonteCarloData$Coverage_names)) %>% distinct() %>% arrange(num)
+#MonteCarloData=merge(MonteCarloData,map)
 
 renderPlot({
   
     p2 <- ggplot() + 
-      geom_point(data=Master_Frame_c %>% filter(DetectThreshold==input$Threshold),
+      geom_point(data=MonteCarloData %>% filter(DetectThreshold==input$Threshold),
                  aes(y=Cumulative_probability, x=Cases_continuous, color = Coverage_names),
                  size=1) +
       labs(x="Infections", y="Cumulative probability")+
       xlim(0,100)+
-      geom_smooth(data=Master_Frame_c %>% filter(DetectThreshold==input$Threshold),
+      geom_smooth(data=MonteCarloData %>% 
+                    filter(DetectThreshold==input$Threshold),
                   formula=y ~ s(x, bs = "cs"), 
                               aes(y=Cumulative_probability, 
                                   x=Cases_continuous, group = Coverage_names), 
@@ -170,6 +256,7 @@ renderPlot({
       theme(title= element_text(face="bold", size=20))+
       theme(legend.position = c(0.8, 0.2)) +
       #scale_color_discrete(labels=Coverage_names)+
+      #These represent the 50, 80, and 95% probability of detection.
       geom_hline(yintercept=0.5, linetype=5, color = "gray40")+
       geom_hline(yintercept=0.8, linetype=5, color = "gray20")+
       geom_hline(yintercept=0.95, linetype=5, color = "gray0")
@@ -178,22 +265,11 @@ renderPlot({
 
 ### Disease Outcomes
 
-```{r}
-  #For diseases, we needed to run the models (above,) rearrange and plot them.
-
-  Cases_to_Run <- reactive({Input$Disease_Scenario})
-  
-  #Restructure for ggplot
-  #model_df2 <- reactive({ #Switch what is in this depending on input data
-  model_df2 <- #For testing
-    model_df_aggregated %>%
-    pivot_longer(!Days, names_to = "Pathogen", values_to = "Cases_TTD") # %>%
-    # filter(Pathogen %in% c('SARS','MERS'))
-  # })
-  
+```{r Disease Outcomes}
+  #For diseases, we needed to run the models (above,) rearrange (above,) and plot them.
   
   p3 <- renderPlot({ggplot() +
-      geom_line(data=model_df2 %>% filter(Pathogen %in% input$Disease_Scenario),
+      geom_line(data=model_df_agg_longer %>% filter(Pathogen %in% input$Disease_Scenario),
                 aes(y=Cases_TTD, x=Days, color=Pathogen), linewidth=1.1,linetype=1)+
       labs(x="Days", y="Infections")+
       xlim(0,70)+
@@ -210,50 +286,17 @@ Row
 -----------------------------------------------------------------------
 ### Detection Probability by Disease
 
-```{r}
-  #model_df_aggregated is the disease number of cases by day
-  #Master_Frame_c is the detection time by number of cases
-  
-  #We need a new data frame with the levels from both DF.
-  
+```{r Detection Probability by Disease}
 
-  # Master_frame_c has HospPCT and DetectThreshold, plus merge variable Cases_continuous
-  # model_df_aggregated has Days and Cases per disease.
-  # Discretize model_df_aggregated case counts by rounding down:
-  model_df_aggregated_discrete <- data.frame(lapply(model_df_aggregated,floor))
-  #I only want the first day that there are X cases.
-  All_disease_mapping_table <- 0
-  #Disease Names with spaces, etc. get mangled, so:
-  corr_Disease_names = gsub(" ",".",gsub("-",".",Disease_names))
-  
-  # Add disease columns to Master_Frame_c.
-  for (name in corr_Disease_names){ # Which are columns in model_df_aggregated_discrete
-    #print(name) }
-    temp_table <- model_df_aggregated_discrete[,c('Days',name)]
-    names(temp_table)<-c('Day','Cases_continuous')
-    temp_table$Cases_continuous = temp_table$Cases_continuous
-    temp_table$Disease = name
-    if (length(All_disease_mapping_table)==1){
-      All_disease_mapping_table <- temp_table
-    } else {All_disease_mapping_table <- rbind(All_disease_mapping_table, temp_table)}
-  }
-  # But we need to offset by the delay!
-  #Do this within the graphing, or it needs a reactive DF, which is expensive!
-  
-    #Include only the first day with that many cases.
-    temp_2 <- All_disease_mapping_table %>% group_by(Cases_continuous, Disease) %>% filter(rank(Cases_continuous,ties.method="first")==1)
-    temp_2 <- data.frame(temp_2)
-    All_disease_mapping_table <- temp_2
+# At this point, we need to use colors EITHER to represent HospPCT *OR* Disease.
+Disease_num <-reactive(match(input$Disease_Scenario[[1]]))
 
-    
-    # At this point, we need to use colors EITHER to represent HospPCT *OR* Disease.
-    Disease_num <-reactive(match(input$Disease_Scenario[[1]]))
-
-    Master_Frame_c$HospPCT=factor(Master_Frame_c$HospPCT,levels=sort(unique(as.numeric(as.character(Master_Frame_c$HospPCT)))))
+MonteCarloData$HospPCT=factor(MonteCarloData$HospPCT,levels=sort(unique(as.numeric(as.character(MonteCarloData$HospPCT)))))
 
 renderPlot({
-  # We now need to add input$Delay to the All_disease_mapping_table!
-  All_disease_mapping_table$Day = All_disease_mapping_table$Day + input$Delay
+  print(input$HospitalizationLag)
+  # We now need to add input$Delay and input$HospitalizationLag to the All_disease_mapping_table!
+  All_disease_mapping_table$Day = All_disease_mapping_table$Day + input$Delay + 14
   #Also add a zero point, to fix the graph?
   Zero_points = data.frame(Disease=gsub(" ",".",gsub("-",".",Disease_names)))
   Zero_points$Day=0
@@ -262,14 +305,14 @@ renderPlot({
   #print(All_disease_mapping_table[which(All_disease_mapping_table$Cases_continuous<2),]) 
   
   ggplot() + 
-        geom_point(data=inner_join(Master_Frame_c,
+        geom_point(data=inner_join(MonteCarloData,
                                    All_disease_mapping_table 
                                    %>% filter(Disease==gsub(" ",".",gsub("-",".",input$Disease_Scenario[[1]]))))
                    %>% filter(DetectThreshold==input$Threshold),
                    aes(y=Cumulative_probability, x=Day, color=HospPCT, group = as.numeric(HospPCT)), size=1) +
         labs(x="Day", y="Cumulative probability")+
         xlim(0,100)+
-        geom_smooth(data=inner_join(Master_Frame_c,
+        geom_smooth(data=inner_join(MonteCarloData,
                                     All_disease_mapping_table
                                     %>% filter(Disease==gsub(" ",".",gsub("-",".",input$Disease_Scenario[[1]])))) 
                     %>% filter(DetectThreshold==input$Threshold),
@@ -284,19 +327,28 @@ renderPlot({
 
 ### Cost versus Infections Graph
 
-```{r}
-Detect_Threshold_ForDate <- 0.95 # 50% Chance of Detection
+```{r Cost versus Infections Graph}
 
-HospPCT=unique(as.character(Master_Frame_c$HospPCT))
+HospPCT=unique(as.character(MonteCarloData$HospPCT))
 
-# Need to account for delay.
 # Done above in All_disease_mapping_table
 # But this table doesn't related to the disease, it's case counts only...
-# We want to graph day at first detection versus cost, I think?
+# We want to graph day at first detection versus cost.
 
-Case_Count_at_Detection <- data.frame(Master_Frame_c %>% group_by(DetectThreshold, HospPCT) %>% arrange(as.numeric(HospPCT)) %>%
-  filter(Cumulative_probability>=Detect_Threshold_ForDate) %>%
-  slice_min(Cumulative_probability,with_ties=FALSE))
+
+# It can end up picking the stochastically lowest case count, which can make fewer hospitals graph as (slightly) more effective
+# MasterFrame_Averaged <- data.frame(Master_Frame_Full %>% group_by(Case,HospPCT,DetectThreshold,Cases_continuous) %>%
+#    dplyr::summarize(Cumulative_probability = mean(Cumulative_probability, na.rm=TRUE)))
+#Doesn't help - still have ties... :(
+
+#Moved to above
+
+# Test_MFF <- data.frame(Master_Frame_Full %>% group_by(Case,HospPCT,DetectThreshold,Cases_continuous) %>%
+#     dplyr::summarize(Cumulative_probability = mean(Cumulative_probability, na.rm=TRUE)))
+# 
+# Case_CaDAV_Test <- data.frame(Test_MFF %>% group_by(DetectThreshold, HospPCT) %>% arrange(as.numeric(HospPCT)) %>%
+#   filter(Cumulative_probability>=Detect_Threshold_ForDate) %>%
+#   slice_min(Cumulative_probability,with_ties=FALSE))
 
 #Costs:
 #Just put the algebra in manually:
@@ -311,58 +363,184 @@ map=data.frame(HospPCT,n_Hosp)
 #print(map)
 Case_Count_at_Detection=merge(Case_Count_at_Detection,map)
 
-Cost<-function(number){
-  #Costs per site:
-  Cost_Sequencers = 450000
-  Cost_Staff = 225000
-  Cost_Compute_Storage = 24000
-  Cost_Reagents_Yearly = 2360*365*2 # 2 Machines, both run 1x/day
-  Yearly_cost = Cost_Staff+Cost_Compute_Storage+Cost_Reagents_Yearly
-  Fixed_Cost = Cost_Sequencers
-  return(number*(NPV(cf0=Fixed_Cost,cf=rep(Yearly_cost,10),times=c(1:10),i=0.03)))
-}
+#Note: Moved Cost Calculation to other script.
 
 n_Hosp_c=as.character(n_Hosp)
-Overall_10y_Cost = sapply(as.numeric(n_Hosp),Cost) #Get the costs to graph.
+Overall_10y_Cost = Overall_10y_Cost_AnyNumber[n_Hosp] #Just the numbers needed.
 
-Cost_map=data.frame(n_Hosp,Overall_10y_Cost)
-Case_Count_at_Detection<- merge(Case_Count_at_Detection,Cost_map)
+Full_Cost_map=data.frame(n_Hosp,Overall_10y_Cost)
+Case_Count_at_Detection<- merge(Case_Count_at_Detection,Full_Cost_map)
+
+#Problem:
+# Case_Count_at_Detection_AllValues$n_Hosp = as.numeric(Case_Count_at_Detection_AllValues$HospPCT)
+# This wasn't what I want. The costs are for this number of hospitals, but I was accidentally treating it as the percentage. Whoops.
+# Iinstead needed to find the minimum number of hospitals to get a given coverage level...
+# (This is trivially the N largest.)
+# Fixed - Then Added Full Cost Map to MonteCarlo Script.
 
 #print(Case_Count_at_Detection)
 renderPlot({
-  ggplot()+ geom_point(data=Case_Count_at_Detection,
+  ggplot()+ geom_point(data=Case_Count_at_Detection_AllValues,
                        aes(y=Overall_10y_Cost, x=Cases_continuous, color=DetectThreshold), size=1) +
-    labs(x="Cases At Detection", y="10-year Discounted Costs")+
-    geom_line(data=Case_Count_at_Detection,
-                aes(y=Overall_10y_Cost, x=Cases_continuous, group=DetectThreshold, color=DetectThreshold)
-                )+
+    labs(x="Hospitalized Cases At Detection", y="10-year Discounted Costs")+
+    geom_line(data=Case_Count_at_Detection_AllValues,
+                aes(y=Overall_10y_Cost, x=Cases_continuous, group=DetectThreshold, color=DetectThreshold) )+
         scale_y_continuous(labels=scales::dollar_format(scale=0.000001, suffix="m",
                                                     n.breaks=4))+
-    xlim(1000,0)+
-    ggtitle(paste("Costs and Number of Cases at First Detection with", scales::percent(Detect_Threshold_ForDate), "probability"))
+    xlim(1000,0) + coord_cartesian(xlim=c(255, 0)) +
+    scale_x_continuous(expand = expansion(add = 0, mult=0), n.breaks=6) +
+    ggtitle(paste("Costs and Number of Hospitalized Cases at First Detection with", scales::percent(Detect_Threshold_ForDate), "probability"))+
+annotate("text",x=190, xmax=240, y=350000000,label="Note that due to stochastic simulation, some noise exists")
+    # ggplot()+ geom_point(data=Case_Count_at_Detection,
+    #                    aes(y=Overall_10y_Cost, x=Cases_continuous, color=DetectThreshold), size=1) +
+    # labs(x="Cases At Detection", y="10-year Discounted Costs")+
+    # geom_line(data=Case_Count_at_Detection,
+    #             aes(y=Overall_10y_Cost, x=Cases_continuous, group=DetectThreshold, color=DetectThreshold)
+    #             )+
+    #     scale_y_continuous(labels=scales::dollar_format(scale=0.000001, suffix="m",
+    #                                                 n.breaks=4))+
+    # xlim(1000,0)+
+    # ggtitle(paste("Costs and Number of Hospitalized Cases at First Detection with", scales::percent(Detect_Threshold_ForDate), "probability"))
   })
+
+
+# Partial_Graph = ggplot()+ geom_point(data=Case_Count_at_Detection,
+#                        aes(y=Overall_10y_Cost, x=Cases_continuous, color=DetectThreshold), size=1) +
+#     labs(x="Cases At Detection", y="10-year Discounted Costs")+
+#     geom_line(data=Case_Count_at_Detection,
+#                 aes(y=Overall_10y_Cost, x=Cases_continuous, group=DetectThreshold, color=DetectThreshold)
+#                 )+
+#         scale_y_continuous(labels=scales::dollar_format(scale=0.000001, suffix="m",
+#                                                     n.breaks=4))+
+#     xlim(1000,0)+
+#     ggtitle(paste("Costs and Number of Hospitalized Cases at First Detection with", scales::percent(Detect_Threshold_ForDate), "probability"))
+# Partial_Graph
 
 ```
 
 More Graphs! (That don't work yet...)
 =======================================================================
+Row
+-----------------------------------------------------------------------
+### Detection Probability by Disease
+
+```{r Detection Probability by Disease 2}
+
+# Continuing From Detection Probability by Disease, do by Hospital Coverage
+
+renderPlot({
+  # We now need to add input$Delay and Hospitalization Lag to the All_disease_mapping_table!
+  All_disease_mapping_table$Day = All_disease_mapping_table$Day + input$Delay + 14
+  #All_disease_mapping_table$Day = All_disease_mapping_table$Day + 15
+  #Also add a zero point, to fix the graph?
+  Zero_points = data.frame(Disease=gsub(" ",".",gsub("-",".",Disease_names)))
+  Zero_points$Day=0
+  Zero_points$Cases_continuous=0
+  All_disease_mapping_table=rbind(All_disease_mapping_table,Zero_points)
+  #print(All_disease_mapping_table[which(All_disease_mapping_table$Cases_continuous<2),]) 
+  # print(input$Coverage)
+  # gsub(" ",".",gsub("-",".",input$Disease_Scenario[[1]]))
+  Coverage_Selected = as.character(Coverage_rates[match(input$Coverage,Coverage_names)])
+  Coverage_name_Selected = input$Coverage
+  ggplot(data=inner_join(
+            MonteCarloData%>% filter(HospPCT==Coverage_Selected)
+            %>% filter(DetectThreshold==input$Threshold),
+            All_disease_mapping_table  
+            %>% filter(Disease!="MERS"), # Too few points, which breaks plotting stat_smooth!
+            relationship = "many-to-many")) + 
+        geom_point(
+          aes(y=Cumulative_probability, x=Day, 
+              color=Disease, group = as.numeric(HospPCT)), size=1) +
+        labs(x="Day", y="Cumulative probability")+
+        #xlim(0,100)+
+    # ggplot() +  #For debugging  
+    stat_smooth(formula=y ~ s(x, bs = "cs"),
+          aes(y=Cumulative_probability,
+              x=Day, group = Disease),
+          method="gam", color="black")+
+        ggtitle(paste("Detection by Disease for", Coverage_name_Selected))
+    })
+
+```
+
+### Cases at Detection time + Delay by Cost
+```{r}
+#Re-create this, don't reuse version from other graph.
+Case_Count_at_Detection_AllValues <- data.frame(Master_Frame_Full %>% group_by(DetectThreshold, HospPCT) %>% arrange(as.numeric(HospPCT)) %>%
+  filter(Cumulative_probability>=Detect_Threshold_ForDate) %>%
+  slice_min(Cumulative_probability,with_ties=FALSE))
+
+Case_Count_at_Detection_AllValues <- merge(Case_Count_at_Detection_AllValues,Full_Cost_Map)
+
+# Need to map to diseases. I want a table of disease cases on day t+delay+14.
+
+renderPlot({
+  model_df_agg_longer_offset = model_df_agg_longer
+  model_df_agg_longer_offset$Days = model_df_agg_longer_offset$Days + input$Delay + 14
+  colnames(model_df_agg_longer_offset)[3] <- "Cases_T_plus_n"
+  
+  Disease_delay_casecount = merge(model_df_agg_longer,model_df_agg_longer_offset)
+
+  # Not working...
+  Disease_Picked = input$Disease_Scenario[[1]] #gsub(" ",".",gsub("-",".",input$Disease_Scenario[[1]]))
+  Coverage_Selected = input$Coverage
+  #Disease_Picked = "SARS"
+  #Coverage_Selected= "15"
+    
+  ggplot() + 
+    geom_point(data=inner_join(
+                 Case_Count_at_Detection_AllValues,
+                  Disease_delay_casecount %>% filter(Pathogen==
+                                                       Disease_Picked),
+                  join_by(closest(Cases_continuous>=Cases_TTD))
+                 ),
+               aes(y=Overall_10y_Cost, x=Cases_T_plus_n, 
+                   color=DetectThreshold), size=1) +
+    labs(x="Total Cases At Detection in Hospitals", y="10-year Discounted System Costs")+
+    geom_line(data=inner_join(
+                 Case_Count_at_Detection_AllValues,
+                  Disease_delay_casecount %>% filter(Pathogen==Disease_Picked),
+                  join_by(closest(Cases_continuous>=Cases_TTD))
+                 ),
+              aes(y=Overall_10y_Cost, x=Cases_T_plus_n,
+                  group=DetectThreshold, color=DetectThreshold) )+
+    scale_y_continuous(labels=scales::dollar_format(scale=0.000001, 
+                                                    suffix="m", n.breaks=4))+
+    xlim(1000,0) + coord_cartesian(xlim=c(255, 0)) +
+    scale_x_continuous(expand = expansion(add = 0, mult=0), n.breaks=6) +
+    ggtitle(paste("Costs and Number of Hospitalized Cases at First Detection with", scales::percent(Detect_Threshold_ForDate), "probability"))
+  
+    # ggplot()+ geom_point(data=Case_Count_at_Detection,
+    #                    aes(y=Overall_10y_Cost, x=Cases_continuous, color=DetectThreshold), size=1) +
+    # labs(x="Cases At Detection", y="10-year Discounted Costs")+
+    # geom_line(data=Case_Count_at_Detection,
+    #             aes(y=Overall_10y_Cost, x=Cases_continuous, group=DetectThreshold, color=DetectThreshold)
+    #             )+
+    #     scale_y_continuous(labels=scales::dollar_format(scale=0.000001, suffix="m",
+    #                                                 n.breaks=4))+
+    # xlim(1000,0)+
+    # ggtitle(paste("Costs and Number of Hospitalized Cases at First Detection with", scales::percent(Detect_Threshold_ForDate), "probability"))
+  })
+```
 
 Row
 -----------------------------------------------------------------------
 ### Detection by Disease for Different Hospital Coverage
 ```{r}
 renderPlot({ggplot() + 
-     geom_point(data=inner_join(Master_Frame_c 
-                                %>% filter(HospPCT==Coverage_rates[match(input$Coverage,Coverage_names)]),
-                                All_disease_mapping_table ) 
+     geom_point(data=inner_join(
+       MonteCarloData  %>% 
+         filter(HospPCT==Coverage_rates[match(input$Coverage, Coverage_names)]),
+       All_disease_mapping_table ) 
                 %>% filter(DetectThreshold==input$Threshold),
                         aes(y=Cumulative_probability, x=Day, color=Disease), size=1) +
      labs(x="Day", y="Cumulative probability")+
-     xlim(0,100)+
-     geom_smooth(data=inner_join(Master_Frame_c 
-                                 %>% filter(HospPCT==Coverage_rates[match(input$Coverage,Coverage_names)]),
-                                 All_disease_mapping_table ) 
-                 %>% filter(DetectThreshold==input$Threshold),
+     # xlim(0,100)+
+     geom_smooth(data=inner_join(
+       MonteCarloData  %>% 
+         filter(HospPCT==Coverage_rates[match(input$Coverage, Coverage_names)]),
+       All_disease_mapping_table ) %>%
+         filter(DetectThreshold==input$Threshold),
                  formula=y ~ s(x, bs = "cs"), 
                  aes(y=Cumulative_probability, 
                      x=Day, group = Disease),
@@ -371,10 +549,6 @@ renderPlot({ggplot() +
   })
 
 ```
-
-Row
------------------------------------------------------------------------
-### Another Row
 
 Model Documentation
 =======================================================================
