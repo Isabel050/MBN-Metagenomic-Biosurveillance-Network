@@ -7,8 +7,10 @@ library(openxlsx)
 #These three *MUST* have the same order.
 Coverage_names = c("Only Sheba","Top 2", "Six Largest", "Ten Largest", "Sixteen Largest")
 n_Hosp=c(1,2,6,10,16)
-Coverage_rates = c(7,14 ,37, 56, 75)
-
+Coverage_rates = c(8, 15 ,38, 56, 79)
+Hospital_visitors <- read.xlsx("Hospital Visitors.xlsx")
+Per_Hospital_Pct <- (Hospital_visitors$Visitors.2021 / Hospital_visitors$Visitors.2021[length(Hospital_visitors$Visitors.2021)])
+Hospital_visitors$pct = Per_Hospital_Pct
 
 #Thresholds are the number of detections (cases) needed for response.
 Thresholds = c(1,3,5)
@@ -85,12 +87,65 @@ if(!ScenariosRun){
   
   
   write_xlsx(Master_Frame_a, "Master_Frame_a.xlsx")
-  write_xlsx(Master_Frame_b, "Master_Frame_b.xlsx")
-  write_xlsx(Master_Frame_c, "Master_Frame_c.xlsx")
+  #write_xlsx(Master_Frame_b, "Master_Frame_b.xlsx")
+  #write_xlsx(Master_Frame_c, "Master_Frame_c.xlsx")
   
   ScenariosRun= TRUE
 }
 
 Master_Frame_a <- read.xlsx("Master_Frame_a.xlsx")
-Master_Frame_b <- read.xlsx("Master_Frame_b.xlsx")
-Master_Frame_c <- read.xlsx("Master_Frame_c.xlsx")
+#Master_Frame_b <- read.xlsx("Master_Frame_b.xlsx")
+#Master_Frame_c <- read.xlsx("Master_Frame_c.xlsx")
+
+
+#FullDataSet=FALSE
+FullDataSet=TRUE
+#Create the full set of possible percentages:
+if(FullDataSet&(!ScenariosRun)){
+  
+  Percentages = c(1:100)
+  Scenarios = list(Percentages,c(1:5))
+  
+  Run_cases <- function(){
+    case=TRUE
+    for (i in Thresholds){
+      for(j in Percentages){
+        scen_name=paste("Scen",j,i,sep="_")
+        #These names are later split out for the dataset.
+        print(scen_name)
+        S = generate_scenario(t=j/100,s=0.5,e=0.25,threshold=i,
+                              scen_name=scen_name,case=case)
+        
+        if(case){
+          Master_Frame_a = data.frame(S[[2]])
+          case=FALSE}
+        else{
+          Master_Frame_a <- cbind(Master_Frame_a,S[[2]])
+
+        }
+      }
+    }
+    
+    Master_Frame_a$Cases_continuous<-as.numeric(as.character(Master_Frame_a$Case))
+
+    
+    return(Master_Frame_a)
+  }
+  
+  Master_Frame_Full = Run_cases()
+  
+  # Map from Top N Hospitals to Percentages
+  Min_Hospitals_for_Pct = data.frame(n_Hosp=c(1:length(Hospital_visitors$pct)), HospPCT=cumsum(Hospital_visitors$pct))[1:(length(Hospital_visitors$pct)-1),]
+  #Remove last row because it's the total, and we can't have 200% coverage...
+  Min_Hospitals_for_Pct$HospPCT = round(100*Min_Hospitals_for_Pct$HospPCT,0)
+  Cost_Anynumber_map = data.frame(n_Hosp=Min_Hospitals_for_Pct$n_Hosp,Overall_10y_Cost=Overall_10y_Cost_AnyNumber[1:length(Min_Hospitals_for_Pct$n_Hosp)])
+  
+  Full_Cost_Map = merge(Min_Hospitals_for_Pct,Cost_Anynumber_map)
+  
+  write_xlsx(Full_Cost_Map, "Full_Cost_Map.xlsx")
+  write_xlsx(Master_Frame_Full, "Master_Frame_Full.xlsx")
+}
+Master_Frame_Full <- read.xlsx("Master_Frame_Full.xlsx") 
+#Actually, we don't need the whole thing, just values that can be mapped to.
+# (Unless/until we allow selecting arbitrary lists of hospitals.)
+Full_Cost_Map <- read.xlsx("Full_Cost_Map.xlsx")
