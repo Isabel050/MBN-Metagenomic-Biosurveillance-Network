@@ -42,7 +42,7 @@ if(Slow) { # comment out entire setup, in favor of loading image.
 #i18n$set_translation_language("en")
   
 #We need the scenarios run in Montecarlo, unless that is done already.
-if(file.exists("Master_Frame_a.xlsx")){ScenariosRun=TRUE} else {ScenariosRun=FALSE}
+if((file.exists("Master_Frame_a.xlsx")&file.exists("Master_Frame_Full.xlsx"))){ScenariosRun=TRUE} else {ScenariosRun=FALSE}
 #Manual rerun instead: ScenariosRun=FALSE
 source("Costs.r", local=TRUE)
 source("Montecarlo.r", local=TRUE) #Note: Uses an output from costs
