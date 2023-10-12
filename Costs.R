@@ -1,5 +1,5 @@
 # Generate Cost Data for ShinyApp Rmd
-
+require("FinancialMath") # For NPV in costs
 
 Cost<-function(number){
   #Costs per site:
@@ -9,7 +9,7 @@ Cost<-function(number){
   Cost_Compute_Storage = 24000
   Cost_Sequencing_Reagents_Yearly = 2300*365*2 # 2 Machines, both run 1x/day
   Costs_Reagents_Per_Sample = 60 #Need to multiply by number of patients
-  Patients_Per_Year = 50000 # Current number
+  Patients_Per_Year = 50000 # Current number. This might need to change dynamically? (Maybe todo: put in function definition and call it again.)
   Yearly_cost = Cost_Staff+Cost_Compute_Storage+Cost_Sequencing_Reagents_Yearly + (Costs_Reagents_Per_Sample + Patients_Per_Year)
   #Fixed this to include the per-patient costs.
   

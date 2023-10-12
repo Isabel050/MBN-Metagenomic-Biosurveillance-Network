@@ -27,14 +27,9 @@ require("FinancialMath") # For NPV in costs
 library(flexdashboard)
 library(i18n) #Translations
 
-#Debug: getwd()
+# Debug: getwd()
+# if (interactive()){setwd("Insert Directory here")}
 
-Slow=TRUE
-#Slow=FALSE
-if(Slow) { # comment out entire setup, in favor of loading image.
-# This is good for loading speed, but we need to figure out what to do in production version.
-
-  
 # bslib::bs_themer() # <- This lets you look at themes and pick.
 
 # Not yet working, need to implement.
@@ -42,7 +37,7 @@ if(Slow) { # comment out entire setup, in favor of loading image.
 #i18n$set_translation_language("en")
   
 #We need the scenarios run in Montecarlo, unless that is done already.
-if((file.exists("Master_Frame_a.xlsx")&file.exists("Master_Frame_Full.xlsx"))){ScenariosRun=TRUE} else {ScenariosRun=FALSE}
+if((file.exists("Master_Frame_a.csv")&file.exists("Master_Frame_Full.csv"))){ScenariosRun=TRUE} else {ScenariosRun=FALSE}
 #Manual rerun instead: ScenariosRun=FALSE
 source("Costs.r", local=TRUE)
 source("Montecarlo.r", local=TRUE) #Note: Uses an output from costs
@@ -51,14 +46,14 @@ source("SEIR.r", local=TRUE)
 # Function Definitions
 
 #Import Data from xslx Generated earlier:
-Master_Frame_a <- read.xlsx("Master_Frame_a.xlsx")
+Master_Frame_a <- read.csv("Master_Frame_a.csv")
 MonteCarloData <-Master_Frame_a %>%
   pivot_longer(!c("Case","Cases_continuous"), names_to = "Coverage", values_to = "Cumulative_probability") 
 MonteCarloData <- 
   separate_wider_delim(MonteCarloData, "Coverage", "_",
                        names= c(NA, "HospPCT","DetectThreshold",NA))
 
-# Master_Frame_Full <- read.xlsx("Master_Frame_Full.xlsx") # Adds 10-15 seconds to loading!
+# Master_Frame_Full <- read.csv("Master_Frame_Full.csv") # Adds 10-15 seconds to loading!
 
 Master_Frame_Full <- Master_Frame_Full %>%
   pivot_longer(!c("Case","Cases_continuous"), names_to = "Coverage", values_to = "Cumulative_probability") %>% separate_wider_delim("Coverage", "_",
@@ -127,7 +122,7 @@ model_df<-data.frame(times)
     if (length(All_disease_mapping_table)==1){
       All_disease_mapping_table <- temp_table
     } else {All_disease_mapping_table <- rbind(All_disease_mapping_table, temp_table)}
-  }
+
   # But we need to offset by the delay!
   #Do this within the graphing, or it needs a reactive DF, which is expensive!
   
@@ -154,9 +149,9 @@ if (FALSE) {"
 Data Manifest:
 
 - MonteCarloData is the results of the Monte-carlo Simulation for specified percentages of hospitals (Previously named Master_Frame_a. Has Coverage_names: Titles for 'Top N' )
-- Master_Frame_Full is the same, for all percentages, to use for per-hospital selection
+- Master_Frame_Full is the same, for all percentages, to use for per-hospital selection and the cost function.
 - Columns: HospPCT, Cases_continuous, DetectThreshold, Cumulative_probability
-- Note: HospPCT can be mapped to Top N with Full_Cost_Map
+- Note: HospPCT can be mapped to Top N with Full_Cost_Map (This is done for cost curves. This will not match if we select arbitrary hospitals.)
 
 - Hospital_visitors is the number of visitors per hospital per year, and percentages for 2021, which is the year used. (This is used for the cost mapping.)
 
@@ -164,13 +159,16 @@ Data Manifest:
 
 - model_df is the raw SEIR model outputs per disease.
 - model_df_aggregated_discrete is the cumulative number of clinical cases (I+R) per disease, discretized to whole numbers of cases.
-Columns: Days, [Disease Name]
+Columns: Days, [Each Pathogen Name], Cases_TTD.
+This is pivoted to have pathogens as one column in below code.
 
 
 "}
 save.image(file='ShinyApp_SetupRun.RData')
-}
-load('ShinyApp_SetupRun.RData')    
+} else {load('ShinyApp_SetupRun.RData')} #If not slow, just load it.
+
+#Note: Ideally, the below code should not have any side effects. It does, so the order matters, as some chunks rely on the changes made in graphs run earlier.
+#TODO: Fix this. (Low priority)
 ```
 
 
@@ -267,6 +265,9 @@ renderPlot({
 
 ```{r Disease Outcomes}
   #For diseases, we needed to run the models (above,) rearrange (above,) and plot them.
+# We probably don't want this graph.
+
+# This could be inflated by the percentage non-hospitalized - which varies per disease! (But only reflected in this graph.)
   
   p3 <- renderPlot({ggplot() +
       geom_line(data=model_df_agg_longer %>% filter(Pathogen %in% input$Disease_Scenario),

@@ -1,14 +1,16 @@
-library(writexl)
-library(openxlsx)
+require(reshape2)
+require(tidyr)
 
 #Manual rerun if there are changes: ScenariosRun=FALSE
+
+# !! CRITICAL !! - Changes will not be run by the Rmd file if the relevant cached csv files are not deleted.
 
 #Percentage Coverage is based on scenarios for hospitals.
 #These three *MUST* have the same order.
 Coverage_names = c("Only Sheba","Top 2", "Six Largest", "Ten Largest", "Sixteen Largest")
 n_Hosp=c(1,2,6,10,16)
 Coverage_rates = c(8, 15 ,38, 56, 79)
-Hospital_visitors <- read.xlsx("Hospital Visitors.xlsx")
+Hospital_visitors <- read.csv("Hospital Visitors.csv")
 Per_Hospital_Pct <- (Hospital_visitors$Visitors.2021 / Hospital_visitors$Visitors.2021[length(Hospital_visitors$Visitors.2021)])
 Hospital_visitors$pct = Per_Hospital_Pct
 
@@ -86,16 +88,12 @@ if(!ScenariosRun){
     pivot_longer(!c("Case","Cases_continuous"), names_to = "Coverage", values_to = "Cumulative_probability") 
   
   
-  write_xlsx(Master_Frame_a, "Master_Frame_a.xlsx")
-  #write_xlsx(Master_Frame_b, "Master_Frame_b.xlsx")
-  #write_xlsx(Master_Frame_c, "Master_Frame_c.xlsx")
-  
-  ScenariosRun= TRUE
+  write.csv(Master_Frame_a, "Master_Frame_a.csv")
+
 }
 
-Master_Frame_a <- read.xlsx("Master_Frame_a.xlsx")
-#Master_Frame_b <- read.xlsx("Master_Frame_b.xlsx")
-#Master_Frame_c <- read.xlsx("Master_Frame_c.xlsx")
+Master_Frame_a <- read.csv("Master_Frame_a.csv")
+
 
 
 #FullDataSet=FALSE
@@ -138,14 +136,18 @@ if(FullDataSet&(!ScenariosRun)){
   Min_Hospitals_for_Pct = data.frame(n_Hosp=c(1:length(Hospital_visitors$pct)), HospPCT=cumsum(Hospital_visitors$pct))[1:(length(Hospital_visitors$pct)-1),]
   #Remove last row because it's the total, and we can't have 200% coverage...
   Min_Hospitals_for_Pct$HospPCT = round(100*Min_Hospitals_for_Pct$HospPCT,0)
+  #This requires that the cost script be run first, which it is when called from the Rmd file.
   Cost_Anynumber_map = data.frame(n_Hosp=Min_Hospitals_for_Pct$n_Hosp,Overall_10y_Cost=Overall_10y_Cost_AnyNumber[1:length(Min_Hospitals_for_Pct$n_Hosp)])
   
   Full_Cost_Map = merge(Min_Hospitals_for_Pct,Cost_Anynumber_map)
   
-  write_xlsx(Full_Cost_Map, "Full_Cost_Map.xlsx")
-  write_xlsx(Master_Frame_Full, "Master_Frame_Full.xlsx")
+  write.csv(Full_Cost_Map, "Full_Cost_Map.csv")
+  write.csv(Master_Frame_Full, "Master_Frame_Full.csv")
 }
-Master_Frame_Full <- read.xlsx("Master_Frame_Full.xlsx") 
+Master_Frame_Full <- read.csv("Master_Frame_Full.csv")
+
+ScenariosRun= TRUE
+
 #Actually, we don't need the whole thing, just values that can be mapped to.
 # (Unless/until we allow selecting arbitrary lists of hospitals.)
-Full_Cost_Map <- read.xlsx("Full_Cost_Map.xlsx")
+Full_Cost_Map <- read.csv("Full_Cost_Map.csv")
