@@ -47,6 +47,7 @@ source("SEIR.r", local=TRUE)
 
 #Import Data from xslx Generated earlier:
 Master_Frame_a <- read.csv("Master_Frame_a.csv")
+Master_Frame_a$X <- NULL
 MonteCarloData <-Master_Frame_a %>%
   pivot_longer(!c("Case","Cases_continuous"), names_to = "Coverage", values_to = "Cumulative_probability") 
 MonteCarloData <- 
@@ -54,7 +55,7 @@ MonteCarloData <-
                        names= c(NA, "HospPCT","DetectThreshold",NA))
 
 # Master_Frame_Full <- read.csv("Master_Frame_Full.csv") # Adds 10-15 seconds to loading!
-
+Master_Frame_Full$X <- NULL
 Master_Frame_Full <- Master_Frame_Full %>%
   pivot_longer(!c("Case","Cases_continuous"), names_to = "Coverage", values_to = "Cumulative_probability") %>% separate_wider_delim("Coverage", "_",
                        names= c(NA, "HospPCT","DetectThreshold",NA))
