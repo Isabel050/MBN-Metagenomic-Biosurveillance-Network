@@ -25,7 +25,4 @@ Disease_Cases <- list(
   list(name = "Pandemic 1918 Flu", params = c(beta = 0.5, sigma = 0.5, gamma = 0.25)),
   list(name = "MERS", params = c(beta = 0.11, sigma = 0.18, gamma = 0.13))
 )
-Disease_names <- c()
-for (i in 1:length(Disease_Cases)) {
-  Disease_names <- append(Disease_names, Disease_Cases[[i]]$name)
-}
+Disease_names <- sapply(Disease_Cases, function(x) x$name)
