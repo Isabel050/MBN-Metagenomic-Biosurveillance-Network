@@ -23,7 +23,6 @@ require(deSolve)
 library(shiny)
 library(plotly)
 library(plyr)
-require("FinancialMath") # For NPV in costs
 library(flexdashboard)
 library(i18n) #Translations
 
@@ -365,10 +364,7 @@ map=data.frame(HospPCT,n_Hosp)
 #print(map)
 Case_Count_at_Detection=merge(Case_Count_at_Detection,map)
 
-#Note: Moved Cost Calculation to other script.
-
-n_Hosp_c=as.character(n_Hosp)
-Overall_10y_Cost = Overall_10y_Cost_AnyNumber[n_Hosp] #Just the numbers needed.
+Overall_10y_Cost <- Cost(n_Hosp)
 
 Full_Cost_map=data.frame(n_Hosp,Overall_10y_Cost)
 Case_Count_at_Detection<- merge(Case_Count_at_Detection,Full_Cost_map)
