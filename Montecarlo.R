@@ -1,6 +1,3 @@
-require(reshape2)
-require(tidyr)
-
 # Manual rerun if there are changes: ScenariosRun=FALSE
 
 # !! CRITICAL !! - Changes will not be run by the Rmd file if the relevant cached csv files are not deleted.
@@ -11,8 +8,7 @@ Coverage_names <- c("Only Sheba", "Top 2", "Six Largest", "Ten Largest", "Sixtee
 n_Hosp <- c(1, 2, 6, 10, 16)
 Coverage_rates <- c(8, 15, 38, 56, 79)
 Hospital_visitors <- read.csv("Hospital Visitors.csv")
-Per_Hospital_Pct <- (Hospital_visitors$Visitors.2021 / Hospital_visitors$Visitors.2021[length(Hospital_visitors$Visitors.2021)])
-Hospital_visitors$pct <- Per_Hospital_Pct
+Hospital_visitors$pct <- Hospital_visitors$Visitors.2021 / sum(Hospital_visitors$Visitors.2021)
 
 # Thresholds are the number of detections (cases) needed for response.
 Thresholds <- c(1, 3, 5)
