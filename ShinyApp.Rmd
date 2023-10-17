@@ -165,7 +165,7 @@ This is pivoted to have pathogens as one column in below code.
 
 "}
 save.image(file='ShinyApp_SetupRun.RData')
-} else {load('ShinyApp_SetupRun.RData')} #If not slow, just load it.
+} # else {load('ShinyApp_SetupRun.RData')} #If not slow, just load it.
 
 #Note: Ideally, the below code should not have any side effects. It does, so the order matters, as some chunks rely on the changes made in graphs run earlier.
 #TODO: Fix this. (Low priority)
