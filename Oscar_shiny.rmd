@@ -1,0 +1,112 @@
+---
+title: "ThreatNet Israel"
+author: "Meusel et al."
+output:
+  flexdashboard::flex_dashboard:
+    theme: 
+      version: 4
+      bootswatch: minty # We can set color themes!
+      #Also check out help on bs_themer
+    orientation: rows
+    source_code: embed
+# If we Output HTML, this allows Latex for the Documentation:  
+# mathjax: "http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+runtime: shiny
+---
+
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(shiny)
+library(flexdashboard)
+
+source("Stochastic.r", local = TRUE)
+
+Disease_Cases <- list(
+  list(name = "SARS-CoV-2", params = c(beta = 0.32, sigma = 0.15, gamma = 0.125)),
+  list(name = "SARS-CoV-2 Omicron", params = c(beta = 1.19, sigma = 0.25, gamma = 0.125)),
+  list(name = "SARS", params = c(beta = 0.24, sigma = 0.25, gamma = 0.1)),
+  list(name = "Seasonal Flu", params = c(beta = 0.33, sigma = 0.5, gamma = 0.25)),
+  list(name = "Pandemic 1918 Flu", params = c(beta = 0.5, sigma = 0.5, gamma = 0.25)),
+  list(name = "MERS", params = c(beta = 0.11, sigma = 0.18, gamma = 0.13))
+)
+Disease_names <- sapply(Disease_Cases, function(x) x$name)
+
+coverage <- tibble(names = c("Only Sheba", "Top 2", "Six Largest", "Ten Largest", "Sixteen Largest"),
+                   n_Hosp = c(1, 2, 6, 10, 16),
+                   rates = c(0.08, 0.15, 0.38, 0.56, 0.79))
+
+```
+
+
+
+Sidebar {.sidebar}
+=====================================
+
+### Inputs for Model
+
+```{r}
+actionButton(
+  inputId = "run",
+  label = "Run Simulations"
+)
+numericInput(
+  inputId = "rep",
+  label = "Simulation runs",
+  value = 10
+)
+selectInput(
+  inputId = "Disease_Scenario",
+  label = "Disease Scenario",
+  choices = Disease_names,
+  selected = 1,
+  multiple = FALSE
+)
+selectInput(
+  inputId = "Coverage",
+  label = "Hospitals participating in Threatnet",
+  choices = coverage$names,
+  selected = 2
+)
+sliderInput(
+  inputId = "Threshold",
+  label = "Detections needed to confirm disease",
+  min = 1,
+  max = 5,
+  value = 1,
+  step = 1,
+  ticks = FALSE
+)
+```
+
+Model Outputs
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+
+### Simulation runs until detection
+
+```{r}
+simulated_data <- eventReactive(input$run, {
+  run_SEIR(
+    disease_name = input$Disease_Scenario[[1]],
+    rep = input$rep,
+    threshold = input$Threshold,
+    p = coverage$rates[coverage$names == input$Coverage] / 8
+  )
+})
+
+renderPlot({
+  data <- simulated_data()
+  plot_SEIR(data[data$variable == "cum_I" & !is.na(data$halted), ])
+})
+```
+
+Model Documentation
+=======================================================================
+
+Row
+-----------------------------------------------------------------------
+```{r test, child="Documentation.RMD", eval=TRUE, local=TRUE}
+```
