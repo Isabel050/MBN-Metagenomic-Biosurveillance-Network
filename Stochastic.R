@@ -90,5 +90,5 @@ plot_SEIR <- function(data) {
 }
 
 # Example usage:
-data <- run_SEIR("SARS-CoV-2", rep = 10)
-plot_SEIR(data)
+# data <- run_SEIR("SARS-CoV-2", rep = 100)
+# plot_SEIR(data)

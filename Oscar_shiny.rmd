@@ -32,10 +32,8 @@ Disease_Cases <- list(
 )
 Disease_names <- sapply(Disease_Cases, function(x) x$name)
 
-coverage <- tibble(names = c("Only Sheba", "Top 2", "Six Largest", "Ten Largest", "Sixteen Largest"),
-                   n_Hosp = c(1, 2, 6, 10, 16),
-                   rates = c(0.08, 0.15, 0.38, 0.56, 0.79))
-
+hospital_visitors <- read.csv("Hospital Visitors.csv")
+hospital_list <- hospital_visitors$Hospital
 ```
 
 
@@ -62,12 +60,14 @@ selectInput(
   selected = 1,
   multiple = FALSE
 )
-selectInput(
-  inputId = "Coverage",
+selectizeInput(
+  inputId = "selected_hospitals",
   label = "Hospitals participating in Threatnet",
-  choices = coverage$names,
-  selected = 2
+  choices = hospital_list,
+  multiple = TRUE,
+  options = list(maxItems = length(hospital_list), placeholder = "Select hospitals...")
 )
+actionButton("toggle_select", "Select/Deselect All")
 sliderInput(
   inputId = "Threshold",
   label = "Detections needed to confirm disease",
@@ -89,17 +89,31 @@ Row
 
 ```{r}
 simulated_data <- eventReactive(input$run, {
+  # Calculate average rate for the selected hospitals
+  total <- sum(hospital_visitors$Visitors.2021)
+  selected <- sum(hospital_visitors$Visitors.2021
+    [hospital_visitors$Hospital %in% input$selected_hospitals])
   run_SEIR(
     disease_name = input$Disease_Scenario[[1]],
     rep = input$rep,
     threshold = input$Threshold,
-    p = coverage$rates[coverage$names == input$Coverage] / 8
+    p = selected / total / 8
   )
+})
+
+observeEvent(input$toggle_select, {
+  # If any hospitals are selected, deselect all. Otherwise, select all.
+  if (length(input$selected_hospitals) > 0) {
+    new_selection <- character(0)  # Use an empty character vector to clear selections
+  } else {
+    new_selection <- hospital_list
+  }
+  updateSelectizeInput(session, "selected_hospitals", selected = new_selection)
 })
 
 renderPlot({
   data <- simulated_data()
-  plot_SEIR(data[data$variable == "cum_I" & !is.na(data$halted), ])
+  plot_SEIR(data)
 })
 ```
 
