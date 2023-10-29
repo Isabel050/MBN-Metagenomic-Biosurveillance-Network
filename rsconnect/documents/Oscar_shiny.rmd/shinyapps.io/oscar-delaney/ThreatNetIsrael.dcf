@@ -5,9 +5,7 @@ account: oscar-delaney
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 10276549
-bundleId: 7838203
+bundleId: 7866091
 url: https://oscar-delaney.shinyapps.io/ThreatNetIsrael/
-when: 1698044411.23067
-lastSyncTime: 1698044411.23068
 asMultiple: FALSE
 asStatic: FALSE
