@@ -21,7 +21,7 @@ SEIRrates <- function(x, params, t) {
     SE <- beta * S * I / N
     EI <- sigma * E
     IR <- gamma * I
-    return(c(SE, EI, EI * p, IR, ifelse(D >= threshold, 1e9, 0)))
+    return(c(SE, EI * (1 - p), EI * p, IR, ifelse(D >= threshold, 1e9, 0)))
   })
 }
 
