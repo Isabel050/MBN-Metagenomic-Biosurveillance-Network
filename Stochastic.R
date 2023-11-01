@@ -189,17 +189,25 @@ plot_cost <- function(results) {
 # results <- expand.grid(d = Disease_names, t = 1:5,
 #   h = 1:nrow(Hospital_visitors), output_cases = c(FALSE, TRUE))
 # results$cost_mil_annu <- Cost(results$h) / 1e6 / 10
+# # Generate all the simulations and save them
+# data <- list()
 # for (i in seq_len(nrow(results))) {
 #   p <- delta * tau * coverage(Hospital_visitors$Hospital[1:results$h[i]])
-#   data <- run_SEIR(results$d[i], rep = 1e3, p = p, threshold = results$t[i])
-#   detect <- detection_time(data)
+#   data[[i]] <- run_SEIR(results$d[i], rep = 1e3, p = p, threshold = results$t[i])
+#   print(i / nrow(results))
+# }
+
+# save(data, file = "full_data.RData")
+
+# # Generate summary statistics from the data
+# for (i in seq_len(nrow(results))) {
+#   detect <- detection_time(data[[i]])
 #   if (results$output_cases[i]) {
 #     temp <- detect$cum_I
 #   } else {
 #     temp <- detect$time
 #   }
 #   results[i, c("q10", "q50", "q90")] <- quantile(temp, c(0.1, 0.5, 0.9))
-#   print(i / nrow(results))
 # }
 
 # save(results, file = "results.RData")
