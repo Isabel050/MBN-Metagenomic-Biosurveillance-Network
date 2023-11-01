@@ -125,7 +125,7 @@ detection_time <- function(data){
     detected <- data %>%
       group_by(rep) %>%
       filter(!is.na(halted)) %>%
-      summarize(time = max(time))
+      summarize(time = max(time), cum_I = max(cum_I))
     return(detected)
 }
 
@@ -145,38 +145,51 @@ Cost <- function(hospitals = 1, years = 10) {
 }
 
 plot_cost <- function(data_subset) {
-  ggplot(data_subset, aes(x = cost_mil, group = interaction(t, d))) +
+  p <- ggplot(data_subset, aes(x = cost_mil_annu, group = interaction(t, d))) +
     geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey80", alpha = 0.5) +
     geom_line(aes(y = q50), linewidth = 1.5, color = "blue") +
-    scale_x_continuous(breaks = seq(0, 1200, by = 200),
-      minor_breaks = seq(0, 1200, by = 100), limits = c(0, 1200)) +
-    scale_y_continuous(breaks = seq(0, 100, by = 20),
-      minor_breaks = seq(0, 100, by = 10), limits = c(0, 100)) +
-    labs(x = "10y discounted cost (USD millions)",
-         y = "Days until detection") +
+    scale_x_continuous(breaks = seq(0, 120, by = 20),
+      minor_breaks = seq(0, 120, by = 10), limits = c(0, 120)) +
+    labs(x = "10y discounted cost (USD millions)") +
     theme_minimal()+
        theme(
          axis.title = element_text(size = 30),
          axis.text = element_text(size = 20),
          legend.position = "none"
        )
+  if (data_subset$output_cases[1]) {
+    p <- p + labs(y = "Infections until detection") +
+      scale_y_continuous(breaks = seq(0, 500, by = 100),
+        minor_breaks = seq(0, 500, by = 50), limits = c(0, 500))
+  } else {
+    p <- p + labs(y = "Days until detection") +
+      scale_y_continuous(breaks = seq(0, 100, by = 20),
+        minor_breaks = seq(0, 100, by = 10), limits = c(0, 100))
+  }
+  return(p)
 }
 
 # # Create a dataframe with all combinations of parameters
-# results <- expand.grid(d = Disease_names, t = 1:5, h = 1:nrow(Hospital_visitors))
-# results$cost_mil <- Cost(results$h) / 1e6
+# results <- expand.grid(d = Disease_names, t = 1:5,
+#   h = 1:nrow(Hospital_visitors), output_cases = c(FALSE, TRUE))
+# results$cost_mil_annu <- Cost(results$h) / 1e6 / 10
 # for (i in seq_len(nrow(results))) {
 #   p <- delta * tau * coverage(Hospital_visitors$Hospital[1:results$h[i]])
 #   data <- run_SEIR(results$d[i], rep = 1e3, p = p, threshold = results$t[i])
-#   times <- detection_time(data)$time
-#   results[i, c("q10", "q50", "q90")] <- quantile(times, c(0.1, 0.5, 0.9))
-#   print(i/nrow(results))
+#   detect <- detection_time(data)
+#   if (results$output_cases[i]) {
+#     temp <- detect$cum_I
+#   } else {
+#     temp <- detect$time
+#   }
+#   results[i, c("q10", "q50", "q90")] <- quantile(temp, c(0.1, 0.5, 0.9))
+#   print(i / nrow(results))
 # }
 
 # save(results, file = "results.RData")
 
 # # Example usage
-# subset_data <- results %>% filter(t == 5, d == "SARS-CoV-2")
+# subset_data <- results %>% filter(output_cases == F, t == 1)
 # plot_cost(subset_data)
 
 # data <- run_SEIR("SARS-CoV-2 Omicron", rep = 1e1, p = 0.01, threshold = 1)
