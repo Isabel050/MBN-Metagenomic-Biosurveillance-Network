@@ -68,8 +68,8 @@ run_SEIR <- function(disease_name, rep = 100, p = 0.01, threshold = 1,
 plot_SEIR <- function(data) {
   # Base plot
   p <- ggplot(data, aes(x = time, y = cum_I, group = rep)) +
-       geom_line(aes(color = rep != 0, size = rep != 0)) +
-       scale_size_manual(values = c(1.5, 0.5)) +
+       geom_line(aes(color = rep != 0, linewidth = rep != 0)) +
+       scale_linewidth_manual(values = c(1.5, 0.5)) +
        labs(x = "Days since first case", y = "Cumulative infections until detection") +
        scale_x_continuous(breaks = seq(0, 100, by = 20),
           minor_breaks = seq(0, 100, by = 10), limits = c(0, 100)) +
@@ -89,8 +89,11 @@ plot_SEIR <- function(data) {
       group_by(rep) %>%
       filter(!is.na(halted)) %>%
       slice_tail(n = 1)
-  p <- p + geom_point(data = last, aes(x = time, y = cum_I), size = 5, color = "red")
-  
+  percentile_y <- quantile(last$cum_I, probs = c(0.1, 0.5, 0.9))
+  percentile_x <- quantile(last$time, probs = c(0.1, 0.5, 0.9))
+  p <- p + geom_hline(yintercept = percentile_y, linetype = "dashed", color = "black") +
+       geom_vline(xintercept = percentile_x, linetype = "dashed", color = "black") +
+       geom_point(data = last, aes(x = time, y = cum_I), size = 5, color = "red")
   return(p)
 }
 
