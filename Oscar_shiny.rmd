@@ -67,6 +67,12 @@ sliderInput(
   step = 1,
   ticks = FALSE
 )
+selectInput(
+  inputId = "cases",
+  label = "Y-axis of costs plot",
+  choices = c("Cases at detection" = TRUE, "Time until detection" = FALSE),
+  multiple = FALSE
+)
 ```
 
 Model Outputs
@@ -117,7 +123,7 @@ It still responds to the other parameters.
 ```{r}
 subset_data <- reactive({
   results %>% 
-    filter(d == input$Disease_Scenario, t == input$Threshold)
+    filter(d == input$Disease_Scenario, t == input$Threshold, output_cases == input$cases)
 })
 
 renderPlot({plot_cost(subset_data())}, height = 500)
