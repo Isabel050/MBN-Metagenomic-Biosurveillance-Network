@@ -37,9 +37,9 @@ SEIR_ode <- function(t, y, params) {
 }
 
 # Run stochastic SEIR for a given disease multiple times using parallelization
-run_SEIR <- function(disease_name, rep = 100, p = 0.01, threshold = 1,
-  initial_state = c(S = 6500000, E = 0, I = 1, R = 0, D = 0), time = 100) {
-
+run_SEIR <- function(
+    disease_name, rep = 100, p = 0.01, threshold = 1,
+    initial_state = c(S = 6500000, E = 0, I = 1, R = 0, D = 0), time = 100) {
   params <- Disease_Cases[[which(Disease_names == disease_name)]]$params
   params["p"] <- p
   params["threshold"] <- threshold
@@ -68,32 +68,36 @@ run_SEIR <- function(disease_name, rep = 100, p = 0.01, threshold = 1,
 plot_SEIR <- function(data) {
   # Base plot
   p <- ggplot(data, aes(x = time, y = cum_I, group = rep)) +
-       geom_line(aes(color = rep != 0, linewidth = rep != 0)) +
-       scale_linewidth_manual(values = c(1.5, 0.5)) +
-       labs(x = "Days since first case", y = "Cumulative infections until detection") +
-       scale_x_continuous(breaks = seq(0, 100, by = 20),
-          minor_breaks = seq(0, 100, by = 10), limits = c(0, 100)) +
-       scale_y_continuous(breaks = seq(0, 500, by = 100),
-          minor_breaks = seq(0, 500, by = 50)) +
-       coord_cartesian(ylim = c(0, 500)) +
-       theme_light() +
-       scale_color_manual(values = c("blue", "grey80")) +
-       theme(
-         axis.title = element_text(size = 30),
-         axis.text = element_text(size = 20),
-         legend.position = "none"
-       )
+    geom_line(aes(color = rep != 0, linewidth = rep != 0)) +
+    scale_linewidth_manual(values = c(1.5, 0.5)) +
+    labs(x = "Days since first case", y = "Cumulative infections until detection") +
+    scale_x_continuous(
+      breaks = seq(0, 100, by = 20),
+      minor_breaks = seq(0, 100, by = 10), limits = c(0, 100)
+    ) +
+    scale_y_continuous(
+      breaks = seq(0, 500, by = 100),
+      minor_breaks = seq(0, 500, by = 50)
+    ) +
+    coord_cartesian(ylim = c(0, 500)) +
+    theme_light() +
+    scale_color_manual(values = c("blue", "grey80")) +
+    theme(
+      axis.title = element_text(size = 30),
+      axis.text = element_text(size = 20),
+      legend.position = "none"
+    )
 
   # Highlight points where the outbreak is detected in stochastic runs
   last <- data %>%
-      group_by(rep) %>%
-      filter(!is.na(halted)) %>%
-      slice_tail(n = 1)
+    group_by(rep) %>%
+    filter(!is.na(halted)) %>%
+    slice_tail(n = 1)
   percentile_y <- quantile(last$cum_I, probs = c(0.1, 0.5, 0.9))
   percentile_x <- quantile(last$time, probs = c(0.1, 0.5, 0.9))
   p <- p + geom_hline(yintercept = percentile_y, linetype = "dashed", color = "black") +
-       geom_vline(xintercept = percentile_x, linetype = "dashed", color = "black") +
-       geom_point(data = last, aes(x = time, y = cum_I), size = 5, color = "red")
+    geom_vline(xintercept = percentile_x, linetype = "dashed", color = "black") +
+    geom_point(data = last, aes(x = time, y = cum_I), size = 5, color = "red")
   return(p)
 }
 
@@ -121,12 +125,12 @@ coverage <- function(hospitals, visitors = Hospital_visitors) {
 }
 
 # Compute the detection time for a given dataset
-detection_time <- function(data){
-    detected <- data %>%
-      group_by(rep) %>%
-      filter(!is.na(halted)) %>%
-      summarize(time = max(time), cum_I = max(cum_I))
-    return(detected)
+detection_time <- function(data) {
+  detected <- data %>%
+    group_by(rep) %>%
+    filter(!is.na(halted)) %>%
+    summarize(time = max(time), cum_I = max(cum_I))
+  return(detected)
 }
 
 # Find the cost for a given number of hospitals
@@ -141,30 +145,36 @@ Cost <- function(hospitals = 1, years = 10) {
   Patients_Per_Year <- 50000 # Current number. This might need to change dynamically? (Maybe todo: put in function definition and call it again.)
   Yearly_cost <- Cost_Staff + Cost_Compute_Storage + Cost_Sequencing_Reagents_Yearly + (Costs_Reagents_Per_Sample * Patients_Per_Year)
 
-  return(hospitals * (Cost_Sequencers + sum(Yearly_cost / (1.03) ^ (1:years))))
+  return(hospitals * (Cost_Sequencers + sum(Yearly_cost / (1.03)^(1:years))))
 }
 
 plot_cost <- function(data_subset) {
   p <- ggplot(data_subset, aes(x = cost_mil_annu, group = interaction(t, d))) +
     geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey80", alpha = 0.5) +
     geom_line(aes(y = q50), linewidth = 1.5, color = "blue") +
-    scale_x_continuous(breaks = seq(0, 120, by = 20),
-      minor_breaks = seq(0, 120, by = 10), limits = c(0, 120)) +
+    scale_x_continuous(
+      breaks = seq(0, 120, by = 20),
+      minor_breaks = seq(0, 120, by = 10), limits = c(0, 120)
+    ) +
     labs(x = "10y discounted cost (USD millions)") +
-    theme_minimal()+
-       theme(
-         axis.title = element_text(size = 30),
-         axis.text = element_text(size = 20),
-         legend.position = "none"
-       )
+    theme_minimal() +
+    theme(
+      axis.title = element_text(size = 30),
+      axis.text = element_text(size = 20),
+      legend.position = "none"
+    )
   if (data_subset$output_cases[1]) {
     p <- p + labs(y = "Infections until detection") +
-      scale_y_continuous(breaks = seq(0, 500, by = 100),
-        minor_breaks = seq(0, 500, by = 50), limits = c(0, 500))
+      scale_y_continuous(
+        breaks = seq(0, 500, by = 100),
+        minor_breaks = seq(0, 500, by = 50), limits = c(0, 500)
+      )
   } else {
     p <- p + labs(y = "Days until detection") +
-      scale_y_continuous(breaks = seq(0, 100, by = 20),
-        minor_breaks = seq(0, 100, by = 10), limits = c(0, 100))
+      scale_y_continuous(
+        breaks = seq(0, 100, by = 20),
+        minor_breaks = seq(0, 100, by = 10), limits = c(0, 100)
+      )
   }
   return(p)
 }
