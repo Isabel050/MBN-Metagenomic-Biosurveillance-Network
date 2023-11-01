@@ -170,14 +170,16 @@ plot_cost <- function(results) {
     p <- p + labs(y = "Infections until detection") +
       scale_y_continuous(
         breaks = seq(0, 500, by = 100),
-        minor_breaks = seq(0, 500, by = 50), limits = c(0, 500)
-      )
+        minor_breaks = seq(0, 500, by = 50)
+      ) +
+      coord_cartesian(ylim = c(0, 500))
   } else {
     p <- p + labs(y = "Days until detection") +
       scale_y_continuous(
         breaks = seq(0, 100, by = 20),
-        minor_breaks = seq(0, 100, by = 10), limits = c(0, 100)
-      )
+        minor_breaks = seq(0, 100, by = 10)
+      ) +
+      coord_cartesian(ylim = c(0, 100))
   }
   return(p)
 }
@@ -203,7 +205,7 @@ plot_cost <- function(results) {
 # save(results, file = "results.RData")
 
 # # Example usage
-# subset_data <- results %>% filter(output_cases == F, t == 1)
+# subset_data <- results %>% filter(output_cases == T, t == 5, d == "SARS-CoV-2 Omicron")
 # plot_cost(subset_data)
 
 # data <- run_SEIR("SARS-CoV-2 Omicron", rep = 1e1, p = 0.01, threshold = 1)
