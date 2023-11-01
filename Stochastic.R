@@ -25,6 +25,7 @@ SEIRrates <- function(x, params, t) {
   })
 }
 
+# Define a deterministic version of the SEIR model
 SEIR_ode <- function(t, y, params) {
   with(as.list(c(params, y)), {
     N <- sum(y)
@@ -48,19 +49,19 @@ run_SEIR <- function(
   out_det <- ode(y = initial_state[1:4], times = seq(0, time, by = 1), func = SEIR_ode, parms = params)
   results_det <- tibble(
     time = out_det[, "time"],
-    cum_I = out_det[, "I"] + out_det[, "R"],
-    rep = 0,
-    halted = NA
+    cum_I = out_det[, "I"] + out_det[, "R"], # cumulative infections
+    rep = 0, # later we will extract the deterministic solution as rep == 0
+    halted = NA # the deterministic solution continues until the end
   )
 
   # Stochastic simulations
-  plan(multisession)
+  plan(multisession) # works on windows and linux
   results_sto <- bind_rows(future_lapply(1:rep, function(i) {
     out <- ssa.adaptivetau(initial_state, transitions, SEIRrates, params, tf = time, halting = 5)
     tibble_data <- as_tibble(out$dynamics) %>%
       mutate(rep = i, cum_I = I + R, halted = out$haltingTransition) %>%
       select(time, cum_I, rep, halted)
-  }, future.seed = TRUE))
+  }, future.seed = TRUE)) # future.seed is needed for parallelization
 
   return(bind_rows(results_det, results_sto))
 }
@@ -71,6 +72,7 @@ plot_SEIR <- function(data) {
     geom_line(aes(color = rep != 0, linewidth = rep != 0)) +
     scale_linewidth_manual(values = c(1.5, 0.5)) +
     labs(x = "Days since first case", y = "Cumulative infections until detection") +
+    # Fix the axes to be the same for all plots
     scale_x_continuous(
       breaks = seq(0, 100, by = 20),
       minor_breaks = seq(0, 100, by = 10), limits = c(0, 100)
@@ -148,8 +150,9 @@ Cost <- function(hospitals = 1, years = 10) {
   return(hospitals * (Cost_Sequencers + sum(Yearly_cost / (1.03)^(1:years))))
 }
 
-plot_cost <- function(data_subset) {
-  p <- ggplot(data_subset, aes(x = cost_mil_annu, group = interaction(t, d))) +
+# Function to plot the cost vs. detection time or infections
+plot_cost <- function(results) {
+  p <- ggplot(results, aes(x = cost_mil_annu, group = interaction(t, d))) +
     geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey80", alpha = 0.5) +
     geom_line(aes(y = q50), linewidth = 1.5, color = "blue") +
     scale_x_continuous(
@@ -163,7 +166,7 @@ plot_cost <- function(data_subset) {
       axis.text = element_text(size = 20),
       legend.position = "none"
     )
-  if (data_subset$output_cases[1]) {
+  if (results$output_cases[1]) {
     p <- p + labs(y = "Infections until detection") +
       scale_y_continuous(
         breaks = seq(0, 500, by = 100),
@@ -180,6 +183,7 @@ plot_cost <- function(data_subset) {
 }
 
 # # Create a dataframe with all combinations of parameters
+# takes ~2 hours, so leave commented unless needed
 # results <- expand.grid(d = Disease_names, t = 1:5,
 #   h = 1:nrow(Hospital_visitors), output_cases = c(FALSE, TRUE))
 # results$cost_mil_annu <- Cost(results$h) / 1e6 / 10
