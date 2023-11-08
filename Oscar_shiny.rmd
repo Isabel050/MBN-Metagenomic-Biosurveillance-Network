@@ -67,6 +67,15 @@ sliderInput(
   step = 1,
   ticks = FALSE
 )
+sliderInput(
+  inputId = "lag",
+  label = "Average time between being infectious and (maybe) seeking care",
+  min = 0,
+  max = 14,
+  value = 7,
+  step = 1,
+  ticks = FALSE
+)
 selectInput(
   inputId = "cases",
   label = "Y-axis of costs plot",
@@ -94,6 +103,7 @@ simulated_data <- eventReactive(input$run, {
     disease_name = input$Disease_Scenario[[1]],
     rep = input$rep,
     threshold = input$Threshold,
+    lag = input$lag,
     p = coverage(input$selected_hospitals) * delta * tau
   )
 })

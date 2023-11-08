@@ -9,8 +9,9 @@ library(deSolve)
 transitions <- list(
   c(S = -1, E = 1), # Infection
   c(E = -1, I = 1), # Progression to infectious
-  c(E = -1, I = +1, D = +1), # Detection
-  c(I = -1, R = 1), # Recovery
+  c(I = -1, L = +1), # Lag until late stage infection
+  c(D = +1), # Detection at transition to late stage infection
+  c(L = -1, R = 1), # Recovery
   c(D = +1) # Outbreak alerted
 )
 
@@ -18,10 +19,11 @@ transitions <- list(
 SEIRrates <- function(x, params, t) {
   with(as.list(c(params, x)), {
     N <- sum(x)
-    SE <- beta * S * I / N
+    SE <- beta * S * (I + L) / N
     EI <- sigma * E
-    IR <- gamma * I
-    return(c(SE, EI * (1 - p), EI * p, IR, ifelse(D >= threshold, 1e9, 0)))
+    IL <- I / lag
+    LR <- gamma * L
+    return(c(SE, EI, IL, IL * p, LR, ifelse(D >= threshold, 1e9, 0)))
   })
 }
 
@@ -29,27 +31,30 @@ SEIRrates <- function(x, params, t) {
 SEIR_ode <- function(t, y, params) {
   with(as.list(c(params, y)), {
     N <- sum(y)
-    dS <- -beta * S * I / N
-    dE <- beta * S * I / N - sigma * E
-    dI <- sigma * E - gamma * I
-    dR <- gamma * I
-    return(list(c(dS, dE, dI, dR)))
+    dS <- -beta * S * (I + L) / N
+    dE <- beta * S * (I + L) / N - sigma * E
+    dI <- sigma * E - I / lag
+    dL <- I / lag - gamma * L
+    dR <- gamma * L
+    dD <- 0 # No detection in the deterministic model
+    return(list(c(dS, dE, dI, dL, dR, dD)))
   })
 }
 
 # Run stochastic SEIR for a given disease multiple times using parallelization
 run_SEIR <- function(
-    disease_name, rep = 100, p = 0.01, threshold = 1,
-    initial_state = c(S = 6500000, E = 0, I = 1, R = 0, D = 0), time = 100) {
+    disease_name, rep = 100, p = 0.01, threshold = 1, lag = 7, time = 100,
+    initial_state = c(S = 6500000, E = 0, I = 1, L = 0, R = 0, D = 0)) {
   params <- Disease_Cases[[which(Disease_names == disease_name)]]$params
   params["p"] <- p
   params["threshold"] <- threshold
+  params["lag"] <- max(1e-9, lag) # lag must be positive
 
   # Deterministic simulation
-  out_det <- ode(y = initial_state[1:4], times = seq(0, time, by = 1), func = SEIR_ode, parms = params)
+  out_det <- ode(y = initial_state, times = seq(0, time, by = 1), func = SEIR_ode, parms = params)
   results_det <- tibble(
     time = out_det[, "time"],
-    cum_I = out_det[, "I"] + out_det[, "R"], # cumulative infections
+    cum_I = out_det[, "I"] + out_det[, "L"] + out_det[, "R"], # cumulative infections
     rep = 0, # later we will extract the deterministic solution as rep == 0
     halted = NA # the deterministic solution continues until the end
   )
@@ -57,9 +62,9 @@ run_SEIR <- function(
   # Stochastic simulations
   plan(multisession) # works on windows and linux
   results_sto <- bind_rows(future_lapply(1:rep, function(i) {
-    out <- ssa.adaptivetau(initial_state, transitions, SEIRrates, params, tf = time, halting = 5)
+    out <- ssa.adaptivetau(initial_state, transitions, SEIRrates, params, tf = time, halting = 6)
     tibble_data <- as_tibble(out$dynamics) %>%
-      mutate(rep = i, cum_I = I + R, halted = out$haltingTransition) %>%
+      mutate(rep = i, cum_I = I + L + R, halted = out$haltingTransition) %>%
       select(time, cum_I, rep, halted)
   }, future.seed = TRUE)) # future.seed is needed for parallelization
 
