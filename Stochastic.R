@@ -22,7 +22,7 @@ SEIRrates <- function(x, params, t) {
     SE <- beta * S * (I + L) / N
     EI <- sigma * E
     IL <- I / lag
-    LR <- gamma * L
+    LR <- L / (1 / gamma - lag)
     return(c(SE, EI, IL, IL * p, LR, ifelse(D >= threshold, 1e9, 0)))
   })
 }
@@ -34,8 +34,8 @@ SEIR_ode <- function(t, y, params) {
     dS <- -beta * S * (I + L) / N
     dE <- beta * S * (I + L) / N - sigma * E
     dI <- sigma * E - I / lag
-    dL <- I / lag - gamma * L
-    dR <- gamma * L
+    dL <- 0 # No lag in deterministic model
+    dR <- gamma * I
     dD <- 0 # No detection in the deterministic model
     return(list(c(dS, dE, dI, dL, dR, dD)))
   })
@@ -48,7 +48,7 @@ run_SEIR <- function(
   params <- Disease_Cases[[which(Disease_names == disease_name)]]$params
   params["p"] <- p
   params["threshold"] <- threshold
-  params["lag"] <- max(1e-9, lag) # lag must be positive
+  params["lag"] <- min(max(1e-9, lag), 1 / params["gamma"] - 1e-9) # lag must be positive
 
   # Deterministic simulation
   out_det <- ode(y = initial_state, times = seq(0, time, by = 1), func = SEIR_ode, parms = params)
