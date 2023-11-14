@@ -61,7 +61,7 @@ run_SEIR <- function(
 
   # Stochastic simulations
   plan(multisession) # works on windows and linux
-  results_sto <- bind_rows(future_lapply(1:rep, function(i) {
+  results_sto <- bind_rows(future_lapply(seq_len(rep), function(i) {
     out <- ssa.adaptivetau(initial_state, transitions, SEIRrates, params, tf = time, halting = 6)
     tibble_data <- as_tibble(out$dynamics) %>%
       mutate(rep = i, cum_I = I + L + R, halted = out$haltingTransition) %>%
