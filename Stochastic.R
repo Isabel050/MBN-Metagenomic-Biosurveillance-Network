@@ -76,7 +76,7 @@ plot_SEIR <- function(data) {
   p <- ggplot(data, aes(x = time, y = cum_I, group = rep)) +
     geom_line(aes(color = rep != 0, linewidth = rep != 0)) +
     scale_linewidth_manual(values = c(1.5, 0.5)) +
-    labs(x = "Days since first case", y = "Cumulative infections until detection") +
+    labs(x = "Days since first case", y = "Cumulative infections") +
     # Fix the axes to be the same for all plots
     scale_x_continuous(
       breaks = seq(0, 100, by = 20),
@@ -164,7 +164,7 @@ plot_cost <- function(results) {
       breaks = seq(0, 120, by = 20),
       minor_breaks = seq(0, 120, by = 10), limits = c(0, 120)
     ) +
-    labs(x = "10y discounted cost (USD millions)") +
+    labs(x = "Cost (USD millions)") +
     theme_minimal() +
     theme(
       axis.title = element_text(size = 30),

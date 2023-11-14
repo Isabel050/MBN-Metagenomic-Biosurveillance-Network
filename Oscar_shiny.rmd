@@ -30,18 +30,9 @@ load("results.RData")
 Sidebar {.sidebar}
 =====================================
 
-### Inputs for Model
+### Model Inputs
 
 ```{r}
-actionButton(
-  inputId = "run",
-  label = "Run Simulations"
-)
-numericInput(
-  inputId = "rep",
-  label = "Simulation runs",
-  value = 10
-)
 selectInput(
   inputId = "Disease_Scenario",
   label = "Disease Scenario",
@@ -49,15 +40,6 @@ selectInput(
   selected = 1,
   multiple = FALSE
 )
-selectizeInput(
-  inputId = "selected_hospitals",
-  label = "Hospitals participating in Threatnet",
-  choices = Hospital_visitors$Hospital,
-  selected = Hospital_visitors$Hospital[1:6],
-  multiple = TRUE,
-  options = list(placeholder = "Select hospitals...")
-)
-actionButton("toggle_select", "Select/Deselect All")
 sliderInput(
   inputId = "Threshold",
   label = "Detections needed to confirm disease",
@@ -69,34 +51,51 @@ sliderInput(
 )
 sliderInput(
   inputId = "lag",
-  label = "Average time between being infectious and (maybe) seeking care",
+  label = "Average time between being infectious and seeking care",
   min = 0,
   max = 7,
   value = 7,
   step = 3.5,
   ticks = FALSE
 )
-selectInput(
-  inputId = "cases",
-  label = "Y-axis of costs plot",
-  choices = c("Cases at detection" = TRUE, "Time until detection" = FALSE),
-  multiple = FALSE
-)
 ```
 
-Model Outputs
+Simulations
 =======================================================================
 
 Row
 -----------------------------------------------------------------------
 
-### Simulation runs until detection
-The blue line is the theoretical deterministic outbreak progression, and the grey lines are stochastic realisations of possible outbreaks.
+### Simulation explanation and parameters
+The blue line shows the average outbreak progression, and the grey lines are individual random runs of the simulation.
+Note that in some runs the outbreak may die out, which is why the number of visible grey lines may be smaller than the number of replicates N.
 The red dots show when each outbreak is detected. This data is regenerated every time you press 'Run Simulations'.
+The dashed grey lines show the 10th, 50th, and 90th percentiles for the day at detection and the number of cases at detection.
+You can either select individual hospitals to participate in ThreatNet, or select the K largest hospitals by number of visitors.
 
 ```{r}
+div(style = "display: flex;",
+  actionButton("run", "Run N simulations", style = "margin-right: 5px;"),
+  div(style = "width: 100px;", numericInput("rep", label = NULL, value = 10, min = 1,))
+)
+selectizeInput(
+  inputId = "selected_hospitals",
+  label = "Hospitals participating in Threatnet",
+  choices = Hospital_visitors$Hospital,
+  selected = Hospital_visitors$Hospital[1:6],
+  multiple = TRUE,
+  options = list(placeholder = "Select hospitals...")
+)
+div(style = "display: flex;",
+  actionButton("select_top_n", "Select K largest hospitals", style = "margin-right: 5px;"),
+  div(style = "width: 100px;", numericInput("top_n", label = NULL, value = 1,
+            min = 1, max = length(Hospital_visitors$Hospital)))
+)
+```
+
+###
+```{r}
 # set figure height
-options(repr.plot.height = 5)
 simulated_data <- eventReactive(input$run, {
   # Calculate average rate for the selected hospitals
   run_SEIR(
@@ -108,35 +107,51 @@ simulated_data <- eventReactive(input$run, {
   )
 })
 
-observeEvent(input$toggle_select, {
-  # If any hospitals are selected, deselect all. Otherwise, select all.
-  if (length(input$selected_hospitals) > 0) {
-    new_selection <- character(0)  # Use an empty character vector to clear selections
-  } else {
-    new_selection <- Hospital_visitors$Hospital
+observeEvent(input$select_top_n, {
+  # Check if the input is within the available range
+  if (input$top_n >= 1 && input$top_n <= length(Hospital_visitors$Hospital)) {
+    # Select the top N hospitals
+    top_n_hospitals <- head(Hospital_visitors$Hospital, n = input$top_n)
+    updateSelectizeInput(session, "selected_hospitals", selected = top_n_hospitals)
   }
-  updateSelectizeInput(session, "selected_hospitals", selected = new_selection)
 })
 
 renderPlot({
   data <- simulated_data()
   plot_SEIR(data)
-}, height = 500)
+})
 ```
 
-### Costs of ThreatNet Israel
-The blue line is the median outcome, and the grey area shows the 10th and 90th percentile of the outcomes.
-The stochastic simulation was run 1000 times for each cost level.
-This is pre-generated data and ignores the specific hospitals and number of replicates selected.
-It still responds to the other parameters.
+Cost-effectiveness
+=======================================================================
 
+Row
+-----------------------------------------------------------------------
+
+### Costs of ThreatNet Israel
+Costs include upfront and running costs, annualized over a ten-year time horizon. For details see the associated article.
+The blue line is the median outcome, and the grey area shows the 10th and 90th percentile of the outcomes.
+The stochastic simulation was pre-run 1000 times for each cost level.
+You can choose whether to display time until detection or cases at detection on the y-axis.
+
+
+```{r}
+selectInput(
+  inputId = "cases",
+  label = "Y-axis of costs plot",
+  choices = c("Cases at detection" = TRUE, "Time until detection" = FALSE),
+  multiple = FALSE
+)
+```
+
+###
 ```{r}
 subset_data <- reactive({
   results %>% 
     filter(d == input$Disease_Scenario, t == input$Threshold, output_cases == input$cases, lag == input$lag)
 })
 
-renderPlot({plot_cost(subset_data())}, height = 500)
+renderPlot({plot_cost(subset_data())})
 ```
 
 Model Documentation
