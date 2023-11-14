@@ -33,7 +33,7 @@ SEIR_ode <- function(t, y, params) {
     N <- sum(y)
     dS <- -beta * S * (I + L) / N
     dE <- beta * S * (I + L) / N - sigma * E
-    dI <- sigma * E - I / lag
+    dI <- sigma * E - gamma * I
     dL <- 0 # No lag in deterministic model
     dR <- gamma * I
     dD <- 0 # No detection in the deterministic model
