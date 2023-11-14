@@ -192,7 +192,7 @@ plot_cost <- function(results) {
 # # Create a dataframe with all combinations of parameters
 # takes ~2 hours, so leave commented unless needed
 # results <- expand.grid(d = Disease_names, t = 1:5,
-#   h = 1:nrow(Hospital_visitors), output_cases = c(FALSE, TRUE))
+#   h = 1:nrow(Hospital_visitors))
 # results$cost_mil_annu <- Cost(results$h) / 1e6 / 10
 # # Generate all the simulations and save them
 # data <- list()
@@ -205,16 +205,15 @@ plot_cost <- function(results) {
 # save(data, file = "full_data.RData")
 
 # # Generate summary statistics from the data
+# results_cases <- transform(results, output_cases = TRUE)
+# results_time <- transform(results, output_cases = FALSE)
 # for (i in seq_len(nrow(results))) {
 #   detect <- detection_time(data[[i]])
-#   if (results$output_cases[i]) {
-#     temp <- detect$cum_I
-#   } else {
-#     temp <- detect$time
-#   }
-#   results[i, c("q10", "q50", "q90")] <- quantile(temp, c(0.1, 0.5, 0.9))
+#   results_cases[i, c("q10", "q50", "q90")] <- quantile(detect$cum_I, c(0.1, 0.5, 0.9))
+#   results_time[i, c("q10", "q50", "q90")] <- quantile(detect$time, c(0.1, 0.5, 0.9))
 # }
 
+# results <- bind_rows(results_cases, results_time)
 # save(results, file = "results.RData")
 
 # # Example usage
