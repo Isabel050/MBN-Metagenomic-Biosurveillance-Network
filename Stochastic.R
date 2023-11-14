@@ -191,14 +191,15 @@ plot_cost <- function(results) {
 
 # # Create a dataframe with all combinations of parameters
 # takes ~2 hours, so leave commented unless needed
-# results <- expand.grid(d = Disease_names, t = 1:5,
-#   h = 1:nrow(Hospital_visitors))
+# results <- expand.grid(d = Disease_names, t = c(1, 3, 5),
+#   h = 1:nrow(Hospital_visitors), lag = c(0, 3.5, 7))
 # results$cost_mil_annu <- Cost(results$h) / 1e6 / 10
 # # Generate all the simulations and save them
 # data <- list()
 # for (i in seq_len(nrow(results))) {
 #   p <- delta * tau * coverage(Hospital_visitors$Hospital[1:results$h[i]])
-#   data[[i]] <- run_SEIR(results$d[i], rep = 1e3, p = p, threshold = results$t[i])
+#   data[[i]] <- run_SEIR(results$d[i], rep = 1e3, p = p,
+#     threshold = results$t[i], lag = results$lag[i])
 #   print(i / nrow(results))
 # }
 
