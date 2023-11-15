@@ -7,54 +7,76 @@ library(deSolve)
 
 # Define the SEIR transitions
 transitions <- list(
-  c(S = -1, E = 1), # Infection
-  c(E = -1, I = 1), # Progression to infectious
-  c(I = -1, L = +1), # Lag until late stage infection
-  c(D = +1), # Detection at transition to late stage infection
-  c(L = -1, R = 1), # Recovery
-  c(D = +1) # Outbreak alerted
+  c(S = -1, E = +1), # Infection
+  c(E = -1, I = +1), # Progression to infectious (mild)
+  c(E = -1, I_sev = +1), # Progression to infectious (severe)
+  c(I = -1, R = +1), # Receovered (ie no longer infectious) from mild infection
+  c(I_sev = -1, R_sev = +1), # Recovered (ie no longer infectious) from severe infection
+  c(I_sev = -1, H = +1), # Hospitalised before recovery (no longer infectious due to isolation)
+  c(R_sev = -1, H = +1), # Hospitalised after recovery
+  c(H = -1, R = +1), # Novel pathogen not detected
+  c(H = -1, R = +1, D = +1), # Novel pathogen detected
+  c(D = 0) # Outbreak alerted
 )
 
 # Function to calculate transition rates for SEIR
 SEIRrates <- function(x, params, t) {
   with(as.list(c(params, x)), {
-    N <- sum(x)
-    SE <- beta * S * (I + L) / N
-    EI <- sigma * E
-    IL <- I / lag
-    LR <- L / (1 / gamma - lag)
-    return(c(SE, EI, IL, IL * p, LR, ifelse(D >= threshold, 1e9, 0)))
+    return(c(
+      beta * S * (I + I_sev) / sum(x[names(x) != "D"]), # Infection
+      sigma * E * c(1 - delta, delta), # Becoming infectious
+      gamma * c(I, I_sev), # recovery (not infectious)
+      1 / lag * c(I_sev, R_sev), # hospitalisation
+      H * 1e9 * c(1 - mu * tau, mu * tau), # possible detection
+      ifelse(D >= threshold, 1e9, 0))) # outbreak declared
   })
 }
 
 # Define a deterministic version of the SEIR model
 SEIR_ode <- function(t, y, params) {
-  with(as.list(c(params, y)), {
-    N <- sum(y)
-    dS <- -beta * S * (I + L) / N
-    dE <- beta * S * (I + L) / N - sigma * E
-    dI <- sigma * E - gamma * I
-    dL <- 0 # No lag in deterministic model
-    dR <- gamma * I
-    dD <- 0 # No detection in the deterministic model
-    return(list(c(dS, dE, dI, dL, dR, dD)))
-  })
+    # Calculate the transition rates using the SEIRrates function
+    rates <- SEIRrates(y, params, t)
+    
+    # Initialize the derivatives with zeros
+    dy <- setNames(rep(0, length(y)), names(y))
+    
+    # Calculate the derivatives based on transitions and rates
+    for (i in seq_along(transitions)) {
+      transition <- transitions[[i]]
+      rate <- rates[i]
+      for (compartment in names(transition)) {
+        dy[compartment] <- dy[compartment] + transition[compartment] * rate
+      }
+    }
+    
+    # Return the list of derivatives
+    return(list(dy))
 }
 
 # Run stochastic SEIR for a given disease multiple times using parallelization
 run_SEIR <- function(
-    disease_name, rep = 100, p = 0.01, threshold = 1, lag = 7, time = 100,
-    initial_state = c(S = 6500000, E = 0, I = 1, L = 0, R = 0, D = 0)) {
+  disease_name, # name of disease to run
+  rep = 100, # number of replicates (0 if only deterministic is wanted)
+  delta = 0.25, # Probability of an infectious person visiting ER
+  tau = 0.77, # sensitivity of mNGS
+  mu = 1, # proportion of emergency rooms connected to ThreatNet
+  threshold = 1, # number of detections needed to declare outbreak
+  lag = 7, # average time taken from becoming infectious to going to ER
+  time = 100, # number of days to run the simulation
+  init = c(S = 6.5e6, E = 1, I = 0, I_sev = 0, R = 0, R_sev = 0, H = 0, D = 0)
+) {
   params <- Disease_Cases[[which(Disease_names == disease_name)]]$params
-  params["p"] <- p
+  params["delta"] <- delta
+  params["tau"] <- tau
+  params["mu"] <- mu
   params["threshold"] <- threshold
-  params["lag"] <- min(max(1e-9, lag), 1 / params["gamma"] - 1e-9) # lag must be positive
+  params["lag"] <- lag
 
   # Deterministic simulation
-  out_det <- ode(y = initial_state, times = seq(0, time, by = 1), func = SEIR_ode, parms = params)
+  out_det <- ode(y = init, times = seq(0, time, by = 1), func = SEIR_ode, parms = params)
   results_det <- tibble(
     time = out_det[, "time"],
-    cum_I = out_det[, "I"] + out_det[, "L"] + out_det[, "R"], # cumulative infections
+    cum_I = out_det[, "I"] + out_det[, "R"], # cumulative infections
     rep = 0, # later we will extract the deterministic solution as rep == 0
     halted = NA # the deterministic solution continues until the end
   )
@@ -62,9 +84,9 @@ run_SEIR <- function(
   # Stochastic simulations
   plan(multisession) # works on windows and linux
   results_sto <- bind_rows(future_lapply(seq_len(rep), function(i) {
-    out <- ssa.adaptivetau(initial_state, transitions, SEIRrates, params, tf = time, halting = 6)
+    out <- ssa.adaptivetau(init, transitions, SEIRrates, params, tf = time, halting = length(transitions))
     tibble_data <- as_tibble(out$dynamics) %>%
-      mutate(rep = i, cum_I = I + L + R, halted = out$haltingTransition) %>%
+      mutate(rep = i, cum_I = I + I_sev + R + R_sev, halted = out$haltingTransition) %>%
       select(time, cum_I, rep, halted)
   }, future.seed = TRUE)) # future.seed is needed for parallelization
 
@@ -120,9 +142,6 @@ Disease_Cases <- list(
 Disease_names <- sapply(Disease_Cases, function(x) x$name)
 
 Hospital_visitors <- read.csv("Hospital Visitors.csv")
-
-delta <- 0.25 # Probability of infectious person visiting ER
-tau <- 0.77 # sensitivity of mNGS
 
 # Define hospital coverage
 coverage <- function(hospitals, visitors = Hospital_visitors) {
@@ -197,8 +216,8 @@ plot_cost <- function(results) {
 # # Generate all the simulations and save them
 # data <- list()
 # for (i in seq_len(nrow(results))) {
-#   p <- delta * tau * coverage(Hospital_visitors$Hospital[1:results$h[i]])
-#   data[[i]] <- run_SEIR(results$d[i], rep = 1e3, p = p,
+#   mu <- coverage(Hospital_visitors$Hospital[1:results$h[i]])
+#   data[[i]] <- run_SEIR(results$d[i], rep = 1e3, mu = mu,
 #     threshold = results$t[i], lag = results$lag[i])
 #   print(i / nrow(results))
 # }
@@ -221,5 +240,5 @@ plot_cost <- function(results) {
 # subset_data <- results %>% filter(output_cases == T, t == 5, d == "SARS-CoV-2 Omicron")
 # plot_cost(subset_data)
 
-# data <- run_SEIR("SARS-CoV-2 Omicron", rep = 1e1, p = 0.01, threshold = 1)
+# data <- run_SEIR("SARS-CoV-2", rep = 1e1, threshold = 1)
 # plot_SEIR(data)

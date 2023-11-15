@@ -103,7 +103,7 @@ simulated_data <- eventReactive(input$run, {
     rep = input$rep,
     threshold = input$Threshold,
     lag = input$lag,
-    p = coverage(input$selected_hospitals) * delta * tau
+    mu = coverage(input$selected_hospitals)
   )
 })
 
