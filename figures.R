@@ -1,3 +1,4 @@
+library(gt)
 source("Stochastic.r", local = TRUE)
 load("results.RData")
 # load("full_data.RData")
@@ -34,14 +35,14 @@ ggplot(data2, aes(x = time, y = cum_I)) +
       legend.text = element_text(size = 20)
     )
 
-ggsave("figs/progression.png", width = 10, height = 10)
+ggsave("figs/progression.jpg", width = 10, height = 10)
 
 # make a subset of results that is only Sars-Cov-2, lag = 7, and p = 0.01
-results_subset <- results %>%
+results_threshold <- results %>%
     filter(d == "SARS-CoV-2", lag == 7, output_cases == FALSE)
 
-ggplot(results_subset, aes(x = cost_mil_annu, group = t)) +
-    geom_line(aes(y = q50, color = factor(t)), linewidth = 5) +
+ggplot(results_threshold, aes(x = cost_mil_annu, group = t)) +
+    geom_line(aes(y = q50, color = factor(t)), linewidth = 2) +
     scale_x_continuous(
       breaks = seq(0, 120, by = 20),
       minor_breaks = seq(0, 120, by = 10), limits = c(0, 120)
@@ -62,4 +63,53 @@ ggplot(results_subset, aes(x = cost_mil_annu, group = t)) +
       legend.text = element_text(size = 20)
     )
 
-ggsave("figs/threshold2.png", width = 10, height = 10)
+ggsave("figs/threshold.jpg", width = 10, height = 10)
+
+results_days <- results %>%
+    filter(d == "SARS-CoV-2", lag == 7, t == 1, output_cases == FALSE)
+plot_cost(results_days)
+ggsave("figs/cost_days.jpg", width = 10, height = 10)
+
+results_cases <- results %>%
+    filter(d == "SARS-CoV-2", lag == 7, t == 1, output_cases == TRUE)
+plot_cost(results_cases) +
+    coord_cartesian(ylim = c(0, 200))
+ggsave("figs/cost_cases.jpg", width = 10, height = 10)
+
+
+### Table 1
+table1 <- results %>%
+    filter(d == "SARS-CoV-2", lag == 7, h %in% c(1, 6, 10, 16, 26)) %>%
+    select(c(t, h, cost_mil_annu, output_cases, q50)) %>%
+    # Calculate coverage
+    rowwise() %>%
+    mutate(coverage = coverage(Hospital_visitors[1:h, "Hospital"])) %>%
+    # round to nearest integer
+    mutate(q50 = round(q50), cost_mil_annu = round(cost_mil_annu)) %>%
+    # format coverage as a percent
+    mutate(coverage = paste0(round(coverage * 100), "%")) %>%
+    # rename output_cases to "output" and TRUE to "cases" and FALSE to "days"
+    rename(output = output_cases, "cost (Mil $)" = cost_mil_annu, hospitals = h) %>%
+    mutate(output = ifelse(output, "cases", "days")) %>%
+    # pivot t and output_cases to columns
+    pivot_wider(names_from = c(t, output), values_from = q50)
+
+table1
+
+gt1 <- gt(table1) %>%
+  tab_spanner(label = "threshold 1", columns = starts_with("1")) %>%
+  tab_spanner(label = "threshold 3", columns = starts_with("3")) %>%
+  tab_spanner(label = "threshold 5", columns = starts_with("5"))
+
+gt1
+
+### Table 2
+table2 <- table1 %>%
+    select(hospitals, coverage)
+
+table2$implementation <- Cost(table2$hospitals, years = 0) / 1e6
+table2$operating <- Cost(table2$hospitals, years = 1, d = 0) / 1e6 - table2$implementation
+table2$ten_year <- Cost(table2$hospitals, years = 10) / 1e6
+table2$annualised <- table2$ten_year / 10
+
+table2
