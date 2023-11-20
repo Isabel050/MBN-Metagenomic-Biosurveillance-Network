@@ -25,7 +25,8 @@ SEIRrates <- function(x, params, t) {
     return(c(
       beta * S * (I + I_sev) / sum(x[names(x) != "D"]), # Infection
       sigma * E * c(1 - delta, delta), # Becoming infectious
-      gamma * c(I, I_sev), # recovery (not infectious)
+      (gamma + 1 / lag) / (1 + 1 / (gamma * lag * (1 - delta))) * I, # Recovery
+      gamma * I_sev, # Recovery from severe infection
       1 / lag * c(I_sev, R_sev), # hospitalisation
       H * 1e9 * c(1 - mu * tau, mu * tau), # possible detection
       ifelse(D >= threshold, 1e9, 0))) # outbreak declared
