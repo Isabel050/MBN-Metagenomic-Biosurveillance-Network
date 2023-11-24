@@ -77,7 +77,7 @@ run_SEIR <- function(
   out_det <- ode(y = init, times = seq(0, time, by = 1), func = SEIR_ode, parms = params)
   results_det <- tibble(
     time = out_det[, "time"],
-    cum_I = out_det[, "I"] + out_det[, "R"], # cumulative infections
+    cum_I = out_det[, "I"] + out_det[, "R"] + out_det[, "I_sev"] + out_det[, "R_sev"], # cumulative infections
     rep = 0, # later we will extract the deterministic solution as rep == 0
     halted = NA # the deterministic solution continues until the end
   )
