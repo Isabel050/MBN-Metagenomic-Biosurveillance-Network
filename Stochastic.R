@@ -24,7 +24,7 @@ SEIRrates <- function(x, params, t) {
       sigma * E * c(1 - delta, # Becoming infectious, not severe
       delta), # Becoming infections, severe
       gamma * I, # Recovery
-      1 / lag * P * c(1 - mu * tau, # Hospitalisation, not detected
+      theta * P * c(1 - mu * tau, # Hospitalisation, not detected
       mu * tau), # Hospitalisation, detected
       ifelse(T >= threshold, 1e9, 0))) # outbreak declared
   })
@@ -59,16 +59,14 @@ run_SEIR <- function(
   tau = 0.77, # sensitivity of mNGS
   mu = 1, # proportion of emergency rooms connected to ThreatNet
   threshold = 1, # number of detections needed to declare outbreak
-  lag = 7, # average time taken from becoming infectious to going to ER
   time = 100, # number of days to run the simulation
   init = c(S = 6.5e6, E = 1, I = 0, R = 0, P = 0, H = 0, T = 0)
 ) {
-  params <- Disease_Cases[[which(Disease_names == disease_name)]]$params
+  params <- all_params[disease_name, ]
   params["delta"] <- delta
   params["tau"] <- tau
   params["mu"] <- mu
   params["threshold"] <- threshold
-  params["lag"] <- lag
 
   # Deterministic simulation
   out_det <- ode(y = init, times = seq(0, time, by = 1), func = SEIR_ode, parms = params)
@@ -129,16 +127,7 @@ plot_SEIR <- function(data) {
 }
 
 # Load data
-Disease_Cases <- list(
-  list(name = "SARS-CoV-2", params = c(beta = 0.32, sigma = 0.15, gamma = 0.125)),
-  list(name = "SARS-CoV-2 Omicron", params = c(beta = 1.19, sigma = 0.25, gamma = 0.125)),
-  list(name = "SARS", params = c(beta = 0.24, sigma = 0.25, gamma = 0.1)),
-  list(name = "Seasonal Flu", params = c(beta = 0.33, sigma = 0.5, gamma = 0.25)),
-  list(name = "Pandemic 1918 Flu", params = c(beta = 0.5, sigma = 0.5, gamma = 0.25)),
-  list(name = "MERS", params = c(beta = 0.11, sigma = 0.18, gamma = 0.13))
-)
-Disease_names <- sapply(Disease_Cases, function(x) x$name)
-
+all_params <- read.csv("params.csv", row.names = 1)
 Hospital_visitors <- read.csv("Hospital Visitors.csv")
 
 # Define hospital coverage
@@ -208,15 +197,15 @@ plot_cost <- function(results) {
 
 # # Create a dataframe with all combinations of parameters
 # takes ~2 hours, so leave commented unless needed
-# results <- expand.grid(d = Disease_names, t = c(1, 3, 5),
-#   h = 1:nrow(Hospital_visitors), lag = c(0, 3.5, 7))
+# results <- expand.grid(d = row.names(all_params), t = c(1, 3, 5),
+#   h = 1:nrow(Hospital_visitors))
 # results$cost_mil_annu <- Cost(results$h) / 1e6 / 10
 # # Generate all the simulations and save them
 # data <- list()
 # for (i in seq_len(nrow(results))) {
 #   mu <- coverage(Hospital_visitors$Hospital[1:results$h[i]])
 #   data[[i]] <- run_SEIR(results$d[i], rep = 1e3, mu = mu,
-#     threshold = results$t[i], lag = results$lag[i])
+#     threshold = results$t[i])
 #   print(i / nrow(results))
 # }
 
