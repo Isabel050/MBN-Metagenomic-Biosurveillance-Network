@@ -8,28 +8,25 @@ library(deSolve)
 # Define the SEIR transitions
 transitions <- list(
   c(S = -1, E = +1), # Infection
-  c(E = -1, I = +1), # Progression to infectious (mild)
-  c(E = -1, I_sev = +1), # Progression to infectious (severe)
-  c(I = -1, R = +1), # Receovered (ie no longer infectious) from mild infection
-  c(I_sev = -1, R_sev = +1), # Recovered (ie no longer infectious) from severe infection
-  c(I_sev = -1, H = +1), # Hospitalised before recovery (no longer infectious due to isolation)
-  c(R_sev = -1, H = +1), # Hospitalised after recovery
-  c(H = -1, R = +1), # Novel pathogen not detected
-  c(H = -1, R = +1, D = +1), # Novel pathogen detected
-  c(D = 0) # Outbreak alerted
+  c(E = -1, I = +1), # Progression to infectious
+  c(E = -1, I = +1, P = +1), # The infection is severe, hospitalisation track
+  c(I = -1, R = +1), # Receovered (ie no longer infectious)
+  c(P = -1, H = +1), # Hospitalised but ThreatNet misses detection
+  c(P = -1, H = +1, T = +1), # Hospitalised and ThreatNet detects pathogen
+  c(T = 0) # Detection threshold met, outbreak alerted
 )
 
 # Function to calculate transition rates for SEIR
 SEIRrates <- function(x, params, t) {
   with(as.list(c(params, x)), {
     return(c(
-      beta * S * (I + I_sev) / sum(x[names(x) != "D"]), # Infection
-      sigma * E * c(1 - delta, delta), # Becoming infectious
-      (gamma + 1 / lag) / (1 + 1 / (gamma * lag * (1 - delta))) * I, # Recovery
-      gamma * I_sev, # Recovery from severe infection
-      1 / lag * c(I_sev, R_sev), # hospitalisation
-      H * 1e9 * c(1 - mu * tau, mu * tau), # possible detection
-      ifelse(D >= threshold, 1e9, 0))) # outbreak declared
+      beta * S * I / (S + E + I + R), # Infection
+      sigma * E * c(1 - delta, # Becoming infectious, not severe
+      delta), # Becoming infections, severe
+      gamma * I, # Recovery
+      1 / lag * P * c(1 - mu * tau, # Hospitalisation, not detected
+      mu * tau), # Hospitalisation, detected
+      ifelse(T >= threshold, 1e9, 0))) # outbreak declared
   })
 }
 
@@ -64,7 +61,7 @@ run_SEIR <- function(
   threshold = 1, # number of detections needed to declare outbreak
   lag = 7, # average time taken from becoming infectious to going to ER
   time = 100, # number of days to run the simulation
-  init = c(S = 6.5e6, E = 1, I = 0, I_sev = 0, R = 0, R_sev = 0, H = 0, D = 0)
+  init = c(S = 6.5e6, E = 1, I = 0, R = 0, P = 0, H = 0, T = 0)
 ) {
   params <- Disease_Cases[[which(Disease_names == disease_name)]]$params
   params["delta"] <- delta
@@ -87,7 +84,7 @@ run_SEIR <- function(
   results_sto <- bind_rows(future_lapply(seq_len(rep), function(i) {
     out <- ssa.adaptivetau(init, transitions, SEIRrates, params, tf = time, halting = length(transitions))
     tibble_data <- as_tibble(out$dynamics) %>%
-      mutate(rep = i, cum_I = I + I_sev + R + R_sev, halted = out$haltingTransition) %>%
+      mutate(rep = i, cum_I = I + R, halted = out$haltingTransition) %>%
       select(time, cum_I, rep, halted)
   }, future.seed = TRUE)) # future.seed is needed for parallelization
 
