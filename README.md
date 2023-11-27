@@ -13,13 +13,13 @@ Results.RData is the output of many simulation runs used in the web app, to save
 
 Technical SEIR details:
 The meanings of some compartments are nonobvious, so to clarify, we are defining:
-Susceptible (S) = has never been infected, and has no immunity to the pathogen
-Exposed (E) = has been exposed to the pathogen and an infection has begun, but the person cannot yet infect others
-Infectious (I) = able to transmit the pathogen to a susceptible individual, may or may not have symptoms
-Recovered (R) = the disease has progressed to no longer be infectious. The person may or may not still have symptoms, or could even be dead.
-Pre-hospitalization (P) = a tracking compartment of infectious (I) people who are going to have more severe symptoms
-Hospitalized (H) = attending an emergency room because of the pathogen, and possibly being tested through ThreatNet. Cannot infect others due to physical isolation.
-Threat-net tested positive (T) = When people enter H they are tested, and some fraction of them will test positive, these are recorded in T.
+- Susceptible (S) = has never been infected, and has no immunity to the pathogen
+- Exposed (E) = has been exposed to the pathogen and an infection has begun, but the person cannot yet infect others
+- Infectious (I) = able to transmit the pathogen to a susceptible individual, may or may not have symptoms
+- Recovered (R) = the disease has progressed to no longer be infectious. The person may or may not still have symptoms, or could even be dead.
+- Pre-hospitalization (P) = a tracking compartment of infectious (I) people who are going to have more severe symptoms
+- Hospitalized (H) = attending an emergency room because of the pathogen, and possibly being tested through ThreatNet. Cannot infect others due to physical isolation.
+- Threat-net tested positive (T) = When people enter H they are tested, and some fraction of them will test positive, these are recorded in T.
 
 Using dashed liens to represent probabilities, and solid lines to represent rates, the transition graph is given by:
 
