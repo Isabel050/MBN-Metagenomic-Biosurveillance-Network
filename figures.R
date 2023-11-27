@@ -5,7 +5,7 @@ load("results.RData")
 
 # now generate stochastic data for all diseases
 data <- list()
-for (i in Disease_names) {
+for (i in row.names(all_params)) {
     data[[i]] <- run_SEIR(i, rep = 0)
 }
 
@@ -37,9 +37,9 @@ ggplot(data2, aes(x = time, y = cum_I)) +
 
 ggsave("figs/progression.jpg", width = 10, height = 10)
 
-# make a subset of results that is only Sars-Cov-2, lag = 7, and p = 0.01
+# make a subset of results that is only Sars-Cov-2, and p = 0.01
 results_threshold <- results %>%
-    filter(d == "SARS-CoV-2", lag == 7, output_cases == FALSE)
+    filter(d == "SARS-CoV-2", output_cases == FALSE)
 
 ggplot(results_threshold, aes(x = cost_mil_annu, group = t)) +
     geom_line(aes(y = q50, color = factor(t)), linewidth = 2) +
@@ -66,20 +66,21 @@ ggplot(results_threshold, aes(x = cost_mil_annu, group = t)) +
 ggsave("figs/threshold.jpg", width = 10, height = 10)
 
 results_days <- results %>%
-    filter(d == "SARS-CoV-2", lag == 7, t == 1, output_cases == FALSE)
+    filter(d == "SARS-CoV-2", t == 1, output_cases == FALSE)
 plot_cost(results_days)
 ggsave("figs/cost_days.jpg", width = 10, height = 10)
 
 results_cases <- results %>%
-    filter(d == "SARS-CoV-2", lag == 7, t == 1, output_cases == TRUE)
+    filter(d == "SARS-CoV-2", t == 1, output_cases == TRUE)
 plot_cost(results_cases) +
-    coord_cartesian(ylim = c(0, 200))
+    coord_cartesian(ylim = c(0, 200)) +
+    scale_y_continuous(breaks = seq(0, 200, by = 50))
 ggsave("figs/cost_cases.jpg", width = 10, height = 10)
 
 
 ### Table 1
 table1 <- results %>%
-    filter(d == "SARS-CoV-2", lag == 7, h %in% c(1, 6, 10, 16, 26)) %>%
+    filter(d == "SARS-CoV-2", h %in% c(1, 6, 10, 16, 26)) %>%
     select(c(t, h, cost_mil_annu, output_cases, q50)) %>%
     # Calculate coverage
     rowwise() %>%
