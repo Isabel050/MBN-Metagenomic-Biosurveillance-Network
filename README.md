@@ -1,15 +1,15 @@
 # ThreatNet Israel
 
 The web user interface for this model is available at https://oscar-delaney.shinyapps.io/ThreatNetIsrael/
-The associated paper is currently unpublished, but we will link to it when it is up.
+The associated paper is currently unpublished, but we will link to it when it is available as a preprint, and once published.
 
 File descriptions:
-stochastic.R is the bones of the model, defining the SEIR model, detection system, and graphing functionality.
-Oscar_shiny.Rmd creates the web interface
-Documentation.Rmd is part of the web interface
-figures.R creates the tables and figures that appear in the manuscript
-Hospital Visitors.csv is data on Israel's health system used in the model
-Results.RData is the output of many simulation runs used in the web app, to save computation time
+- stochastic.R is the bones of the model, defining the SEIR model, detection system, and graphing functionality.
+- Oscar_shiny.Rmd creates the web interface
+- Documentation.Rmd is part of the web interface
+- figures.R creates the tables and figures that appear in the manuscript
+- Hospital Visitors.csv is data on Israel's health system used in the model
+- Results.RData is the output of many simulation runs used in the web app, to save computation time
 
 Technical SEIR details:
 The meanings of some compartments are nonobvious, so to clarify, we are defining:
