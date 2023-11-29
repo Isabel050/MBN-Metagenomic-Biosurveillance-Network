@@ -39,7 +39,7 @@ ggsave("figs/progression.jpg", width = 10, height = 10)
 
 # make a subset of results that is only Sars-Cov-2, and p = 0.01
 results_threshold <- results %>%
-    filter(d == "SARS-CoV-2", output_cases == FALSE)
+    filter(d == "SARS-CoV-2", output == "time")
 
 ggplot(results_threshold, aes(x = cost_mil_annu, group = t)) +
     geom_line(aes(y = q50, color = factor(t)), linewidth = 2) +
@@ -66,22 +66,20 @@ ggplot(results_threshold, aes(x = cost_mil_annu, group = t)) +
 ggsave("figs/threshold.jpg", width = 10, height = 10)
 
 results_days <- results %>%
-    filter(d == "SARS-CoV-2", t == 1, output_cases == FALSE)
+    filter(d == "SARS-CoV-2", t == 1, output == "time")
 plot_cost(results_days)
 ggsave("figs/cost_days.jpg", width = 10, height = 10)
 
 results_cases <- results %>%
-    filter(d == "SARS-CoV-2", t == 1, output_cases == TRUE)
-plot_cost(results_cases) +
-    coord_cartesian(ylim = c(0, 200)) +
-    scale_y_continuous(breaks = seq(0, 200, by = 50))
+    filter(d == "SARS-CoV-2", t == 1, output == "cases")
+plot_cost(results_cases)
 ggsave("figs/cost_cases.jpg", width = 10, height = 10)
 
 
 ### Table 1
 table1 <- results %>%
     filter(d == "SARS-CoV-2", h %in% c(1, 6, 10, 16, 26)) %>%
-    select(c(t, h, cost_mil_annu, output_cases, q50)) %>%
+    select(c(t, h, cost_mil_annu, output, q50)) %>%
     # Calculate coverage
     rowwise() %>%
     mutate(coverage = coverage(Hospital_visitors[1:h, "Hospital"])) %>%
@@ -90,8 +88,7 @@ table1 <- results %>%
     # format coverage as a percent
     mutate(coverage = paste0(round(coverage * 100), "%")) %>%
     # rename output_cases to "output" and TRUE to "cases" and FALSE to "days"
-    rename(output = output_cases, "cost (Mil $)" = cost_mil_annu, hospitals = h) %>%
-    mutate(output = ifelse(output, "cases", "days")) %>%
+    rename("cost (Mil $)" = cost_mil_annu, hospitals = h) %>%
     # pivot t and output_cases to columns
     pivot_wider(names_from = c(t, output), values_from = q50)
 

@@ -71,6 +71,7 @@ run_SEIR <- function(
   results_det <- tibble(
     time = out_det[, "time"],
     cum_I = out_det[, "I"] + out_det[, "R"], # cumulative infections
+    H = out_det[, "H"], # hospitalisations
     rep = 0, # later we will extract the deterministic solution as rep == 0
     halted = NA # the deterministic solution continues until the end
   )
@@ -81,7 +82,7 @@ run_SEIR <- function(
     out <- ssa.adaptivetau(init, transitions, SEIRrates, params, tf = time, halting = length(transitions))
     tibble_data <- as_tibble(out$dynamics) %>%
       mutate(rep = i, cum_I = I + R, halted = out$haltingTransition) %>%
-      select(time, cum_I, rep, halted)
+      select(time, cum_I, H, rep, halted)
   }, future.seed = TRUE)) # future.seed is needed for parallelization
 
   return(bind_rows(results_det, results_sto))
@@ -140,7 +141,7 @@ detection_time <- function(data) {
   detected <- data %>%
     group_by(rep) %>%
     filter(!is.na(halted)) %>%
-    summarize(time = max(time), cum_I = max(cum_I))
+    summarize(time = max(time), cum_I = max(cum_I), H = max(H))
   return(detected)
 }
 
@@ -175,14 +176,23 @@ plot_cost <- function(results) {
       axis.text = element_text(size = 20),
       legend.position = "none"
     )
-  if (results$output_cases[1]) {
+  if (results$output[1] == "cases") {
     p <- p + labs(y = "Infections until detection") +
       scale_y_continuous(
         breaks = seq(0, 500, by = 100),
         minor_breaks = seq(0, 500, by = 50)
       ) +
       coord_cartesian(ylim = c(0, 500))
-  } else {
+  }
+  if (results$output[1] == "hosp") {
+    p <- p + labs(y = "Hospitalisations until detection") +
+      scale_y_continuous(
+        breaks = seq(0, 50, by = 10),
+        minor_breaks = seq(0, 50, by = 5)
+      ) +
+      coord_cartesian(ylim = c(0, 50))
+  }
+  if (results$output[1] == "time") {
     p <- p + labs(y = "Days until detection") +
       scale_y_continuous(
         breaks = seq(0, 100, by = 20),
@@ -210,19 +220,21 @@ plot_cost <- function(results) {
 # save(data, file = "full_data.RData")
 
 # # Generate summary statistics from the data
-# results_cases <- transform(results, output_cases = TRUE)
-# results_time <- transform(results, output_cases = FALSE)
+# results_cases <- transform(results, output = "cases")
+# results_hosp <- transform(results, output = "hosp")
+# results_time <- transform(results, output = "time")
 # for (i in seq_len(nrow(results))) {
 #   detect <- detection_time(data[[i]])
 #   results_cases[i, c("q10", "q50", "q90")] <- quantile(detect$cum_I, c(0.1, 0.5, 0.9))
+#   results_hosp[i, c("q10", "q50", "q90")] <- quantile(detect$H, c(0.1, 0.5, 0.9))
 #   results_time[i, c("q10", "q50", "q90")] <- quantile(detect$time, c(0.1, 0.5, 0.9))
 # }
 
-# results <- bind_rows(results_cases, results_time)
+# results <- bind_rows(results_cases, results_hosp, results_time)
 # save(results, file = "results.RData")
 
 # # Example usage
-# subset_data <- results %>% filter(output_cases == T, t == 5, d == "SARS-CoV-2 Omicron")
+# subset_data <- results %>% filter(output == "cases", t == 5, d == "SARS-CoV-2 Omicron")
 # plot_cost(subset_data)
 
 # data <- run_SEIR("SARS-CoV-2", rep = 1e1, threshold = 1)
