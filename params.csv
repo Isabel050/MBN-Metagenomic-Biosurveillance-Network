@@ -1,7 +1,8 @@
-Disease,beta,sigma,gamma,theta
-SARS-CoV-2,0.32,0.15,0.125,0.12
-SARS-CoV-2 Omicron,1.19,0.25,0.125,0.1
-SARS,0.24,0.25,0.1,0.1
-Seasonal Flu,0.33,0.5,0.25,0.1
-Pandemic 1918 Flu,0.5,0.5,0.25,0.1
-MERS,0.11,0.18,0.13,0.1
+Disease,beta,sigma,gamma,delta,theta
+SARS-CoV-2,0.32,0.15,0.125,0.026,0.12
+SARS-CoV-2 Omicron,1.19,0.25,0.125,0.0062,0.14
+SARS,0.24,0.25,0.1,1,0.17
+Seasonal Flu,0.33,0.5,0.25,0.045,0.63
+Pandemic 1918 Flu,0.5,0.5,0.25,0.046,0.4
+MERS,0.11,0.18,0.13,0.71,0.25
+H5N1,0.12,0.2,0.11,1,0.2

@@ -55,7 +55,6 @@ SEIR_ode <- function(t, y, params) {
 run_SEIR <- function(
   disease_name, # name of disease to run
   rep = 100, # number of replicates (0 if only deterministic is wanted)
-  delta = 0.25, # Probability of an infectious person visiting ER
   tau = 0.77, # sensitivity of mNGS
   mu = 1, # proportion of emergency rooms connected to ThreatNet
   threshold = 1, # number of detections needed to declare outbreak
@@ -63,7 +62,6 @@ run_SEIR <- function(
   init = c(S = 6.5e6, E = 1, I = 0, R = 0, P = 0, H = 0, T = 0)
 ) {
   params <- all_params[disease_name, ]
-  params["delta"] <- delta
   params["tau"] <- tau
   params["mu"] <- mu
   params["threshold"] <- threshold
