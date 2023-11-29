@@ -36,7 +36,7 @@ Sidebar {.sidebar}
 selectInput(
   inputId = "Disease_Scenario",
   label = "Disease Scenario",
-  choices = Disease_names,
+  choices = row.names(all_params),
   selected = 1,
   multiple = FALSE
 )
@@ -47,15 +47,6 @@ sliderInput(
   max = 5,
   value = 1,
   step = 2,
-  ticks = FALSE
-)
-sliderInput(
-  inputId = "lag",
-  label = "Average time between being infectious and seeking care",
-  min = 0,
-  max = 7,
-  value = 7,
-  step = 3.5,
   ticks = FALSE
 )
 ```
@@ -102,7 +93,6 @@ simulated_data <- eventReactive(input$run, {
     disease_name = input$Disease_Scenario[[1]],
     rep = input$rep,
     threshold = input$Threshold,
-    lag = input$lag,
     mu = coverage(input$selected_hospitals)
   )
 })
@@ -152,7 +142,7 @@ selectInput(
 ```{r}
 subset_data <- reactive({
   results %>% 
-    filter(d == input$Disease_Scenario, t == input$Threshold, output = input$y_axis, lag == input$lag)
+    filter(d == input$Disease_Scenario, t == input$Threshold, output == input$y_axis)
 })
 
 renderPlot({plot_cost(subset_data())})

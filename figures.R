@@ -33,9 +33,10 @@ ggplot(data2, aes(x = time, y = cum_I)) +
       legend.position = "bottom",
       legend.title = element_text(size = 30),
       legend.text = element_text(size = 20)
-    )
+    )  +
+    guides(color = guide_legend(nrow = 3, byrow = TRUE, override.aes = list(size = 5)))
 
-ggsave("figs/progression.jpg", width = 10, height = 10)
+ggsave("outputs/progression.jpg", width = 12, height = 12)
 
 # make a subset of results that is only Sars-Cov-2, and p = 0.01
 results_threshold <- results %>%
@@ -63,17 +64,22 @@ ggplot(results_threshold, aes(x = cost_mil_annu, group = t)) +
       legend.text = element_text(size = 20)
     )
 
-ggsave("figs/threshold.jpg", width = 10, height = 10)
+ggsave("outputs/threshold.jpg", width = 12, height = 12)
 
 results_days <- results %>%
     filter(d == "SARS-CoV-2", t == 1, output == "time")
 plot_cost(results_days)
-ggsave("figs/cost_days.jpg", width = 10, height = 10)
+ggsave("outputs/cost_days.jpg", width = 12, height = 12)
 
 results_cases <- results %>%
     filter(d == "SARS-CoV-2", t == 1, output == "cases")
 plot_cost(results_cases)
-ggsave("figs/cost_cases.jpg", width = 10, height = 10)
+ggsave("outputs/cost_cases.jpg", width = 12, height = 12)
+
+results_hosp <- results %>%
+    filter(d == "SARS-CoV-2", t == 1, output == "hosp")
+plot_cost(results_hosp)
+ggsave("outputs/cost_hosp.jpg", width = 12, height = 12)
 
 
 ### Table 1
@@ -111,3 +117,7 @@ table2$ten_year <- Cost(table2$hospitals, years = 10) / 1e6
 table2$annualised <- table2$ten_year / 10
 
 table2
+
+# save tables as csv files
+write.csv(table1, "outputs/epidemiology_results.csv", row.names = FALSE)
+write.csv(table2, "outputs/costs_results.csv", row.names = FALSE)

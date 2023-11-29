@@ -179,10 +179,10 @@ plot_cost <- function(results) {
   if (results$output[1] == "cases") {
     p <- p + labs(y = "Infections until detection") +
       scale_y_continuous(
-        breaks = seq(0, 500, by = 100),
-        minor_breaks = seq(0, 500, by = 50)
+        breaks = seq(0, 1000, by = 200),
+        minor_breaks = seq(0, 1000, by = 100)
       ) +
-      coord_cartesian(ylim = c(0, 500))
+      coord_cartesian(ylim = c(0, 1000))
   }
   if (results$output[1] == "hosp") {
     p <- p + labs(y = "Hospitalisations until detection") +
