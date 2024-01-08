@@ -81,11 +81,38 @@ results_hosp <- results %>%
 plot_cost(results_hosp)
 ggsave("outputs/cost_hosp.jpg", width = 12, height = 12)
 
+### Example simulation dynamics
+set.seed(0)
+sim_data <- run_SEIR(disease_name = "SARS-CoV-2", rep = 100, threshold = 3)
+plot_SEIR(sim_data)
+ggsave("outputs/example_SEIR_dynamics.jpg", width = 12, height = 12)
+
+### Number of people vs number of hospitals
+Hospital_visitors$cum <- cumsum(Hospital_visitors$Visitors.2021) / sum(Hospital_visitors$Visitors.2021)
+Hospital_visitors$n <- seq_along(Hospital_visitors$cum)
+
+# Create the ggplot bar graph
+ggplot(Hospital_visitors, aes(x = n, y = cum * 100)) +
+    geom_bar(stat = "identity") +
+    scale_x_continuous(breaks = Hospital_visitors$n) +
+    labs(
+        x = "Number of Hospitals",
+        y = "Cumulative Percentage of Population Covered"
+    ) +
+    theme_minimal()  +
+    theme(
+      axis.title = element_text(size = 30),
+      axis.text = element_text(size = 20),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      axis.text.x = element_text(margin = margin(t = -30, b = 30))
+    )
+ggsave("outputs/hospital_coverage.jpg", width = 12, height = 12)
 
 ### Table 1
 table1 <- results %>%
-    filter(d == "SARS-CoV-2", h %in% c(1, 6, 10, 16, 26)) %>%
-    select(c(t, h, cost_mil_annu, output, q50)) %>%
+    filter(h %in% c(1, 6, 10, 16, 26)) %>%
+    select(c(d, t, h, cost_mil_annu, output, q50)) %>%
     # Calculate coverage
     rowwise() %>%
     mutate(coverage = coverage(Hospital_visitors[1:h, "Hospital"])) %>%
@@ -94,7 +121,7 @@ table1 <- results %>%
     # format coverage as a percent
     mutate(coverage = paste0(round(coverage * 100), "%")) %>%
     # rename output_cases to "output" and TRUE to "cases" and FALSE to "days"
-    rename("cost (Mil $)" = cost_mil_annu, hospitals = h) %>%
+    rename("cost (Mil $)" = cost_mil_annu, hospitals = h, disease = d) %>%
     # pivot t and output_cases to columns
     pivot_wider(names_from = c(t, output), values_from = q50)
 
@@ -109,6 +136,7 @@ gt1
 
 ### Table 2
 table2 <- table1 %>%
+    filter(disease == "SARS-CoV-2") %>%
     select(hospitals, coverage)
 
 table2$implementation <- Cost(table2$hospitals, years = 0) / 1e6
