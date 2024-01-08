@@ -163,7 +163,7 @@ Cost <- function(hospitals = 1, years = 10, d = 0.03) {
 # Function to plot the cost vs. detection time or infections
 plot_cost <- function(results) {
   p <- ggplot(results, aes(x = cost_mil_annu, group = interaction(t, d))) +
-    geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey80", alpha = 0.5) +
+    geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey80", alpha = 0.5) +
     geom_line(aes(y = q50), linewidth = 1.5, color = "blue") +
     scale_x_continuous(
       breaks = seq(0, 120, by = 20),
@@ -225,9 +225,9 @@ plot_cost <- function(results) {
 # results_time <- transform(results, output = "time")
 # for (i in seq_len(nrow(results))) {
 #   detect <- detection_time(data[[i]])
-#   results_cases[i, c("q10", "q50", "q90")] <- quantile(detect$cum_I, c(0.1, 0.5, 0.9))
-#   results_hosp[i, c("q10", "q50", "q90")] <- quantile(detect$H, c(0.1, 0.5, 0.9))
-#   results_time[i, c("q10", "q50", "q90")] <- quantile(detect$time, c(0.1, 0.5, 0.9))
+#   results_cases[i, c("q25", "q50", "q75")] <- quantile(detect$cum_I, c(0.25, 0.5, 0.75))
+#   results_hosp[i, c("q25", "q50", "q75")] <- quantile(detect$H, c(0.25, 0.5, 0.75))
+#   results_time[i, c("q25", "q50", "q75")] <- quantile(detect$time, c(0.25, 0.5, 0.75))
 # }
 
 # results <- bind_rows(results_cases, results_hosp, results_time)
