@@ -1,0 +1,30 @@
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc}
+
+\begin{document}
+
+\begin{tikzpicture}[>=Stealth, node distance=3cm, on grid, auto, thick]
+  % Nodes
+  \node (S) {$S$};
+  \node (E) [right=of S] {$E$};
+  \node (I) [right=of E] {$I$};
+  \node (R) [right=of I] {$R$};
+  \node (P) [below=of $(E)!1!(I)$, yshift = 2cm] {$P$};
+  \node (H) [right=of P] {$H$};
+  \node (T) [below=of $(P)!1!(H)$, yshift = 2cm] {$T$};
+
+  % Solid arrows
+  \draw[->] (S) -- node[pos = 0.25] {$\beta \frac{SI}{N}$} (E);
+  \draw[->] (E) -- node[pos = 0.25] {$\sigma E$} (I);
+  \draw[->] (I) -- node[pos = 0.25] {$\gamma I$} (R);
+  \draw[->] (P) -- node[pos = 0.25] {$\theta P$} (H);
+
+  % Dashed arrows
+  \draw[->, dashed] ($(E)!0.5!(I)$) -- node[right] {$\delta$} (P);
+  \draw[->, dashed] ($(P)!0.5!(H)$) -- node[right] {$\mu \tau$} (T);
+
+
+\end{tikzpicture}
+
+\end{document}
