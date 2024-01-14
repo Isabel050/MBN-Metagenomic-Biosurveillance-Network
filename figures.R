@@ -78,7 +78,12 @@ ggsave("outputs/cost_cases.jpg", width = 12, height = 12)
 
 results_hosp <- results %>%
     filter(d == "SARS-CoV-2", t == 1, output == "hosp")
-plot_cost(results_hosp)
+plot_cost(results_hosp) + 
+    scale_y_continuous(
+        breaks = seq(0, 10, by = 2),
+    ) +
+    coord_cartesian(ylim = c(0, 10))
+    
 ggsave("outputs/cost_hosp.jpg", width = 12, height = 12)
 
 ### Example simulation dynamics
@@ -146,6 +151,22 @@ table2$annualised <- table2$ten_year / 10
 
 table2
 
+table3 <- results %>%
+    filter(h %in% c(1, 6, 10, 16, 26), d == "SARS-CoV-2") %>%
+    select(c(t, h, cost_mil_annu, output, q25, q50, q75)) %>%
+    # Calculate coverage
+    rowwise() %>%
+    mutate(coverage = coverage(Hospital_visitors[1:h, "Hospital"])) %>%
+    # round to nearest integer
+    mutate(q25 = round(q25), q50 = round(q50), q75 = round(q75), cost_mil_annu = round(cost_mil_annu)) %>%
+    # format coverage as a percent
+    mutate(coverage = paste0(round(coverage * 100), "%")) %>%
+    # rename output_cases to "output" and TRUE to "cases" and FALSE to "days"
+    rename("cost (Mil $)" = cost_mil_annu, hospitals = h, threshold = t)
+
+table3
+
 # save tables as csv files
 write.csv(table1, "outputs/epidemiology_results.csv", row.names = FALSE)
 write.csv(table2, "outputs/costs_results.csv", row.names = FALSE)
+write.csv(table3, "outputs/SARS-CoV-2_only_results.csv", row.names = FALSE)
