@@ -118,10 +118,10 @@ plot_SEIR <- function(data) {
   # Add median dot and IQR error bars
   p <- p +
     geom_errorbar(aes(x = percentile_x[2], ymin = percentile_y[1], ymax = percentile_y[3]), 
-                  width = 4, size = 1, linetype = "dashed") +
+                  width = 2, linewidth = 1) +
     geom_errorbarh(aes(y = percentile_y[2], xmin = percentile_x[1], xmax = percentile_x[3]), 
-                   height = 20, size = 1, linetype = "dashed") +
-    geom_point(data = percentiles[2, ], aes(x = time, y = cum_I), size=5, shape=16, color="blue") #Dot
+                   height = y_lim / 50, linewidth = 1) +
+    geom_point(data = percentiles[2, ], aes(x = time, y = cum_I), size=5, shape=16, color="blue")
   return(p)
 }
 
