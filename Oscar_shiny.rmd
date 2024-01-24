@@ -51,23 +51,13 @@ sliderInput(
 )
 ```
 
-Simulations
-=======================================================================
-
-Row
------------------------------------------------------------------------
-
-### Simulation explanation and parameters
-The blue line shows the average outbreak progression, and the grey lines are individual random runs of the simulation.
-Note that in some runs the outbreak may die out, which is why the number of visible grey lines may be smaller than the number of replicates N.
-The red dots show when each outbreak is detected. This data is regenerated every time you press 'Run Simulations'.
-The dashed grey lines show the 10th, 50th, and 90th percentiles for the day at detection and the number of cases at detection.
-You can either select individual hospitals to participate in ThreatNet, or select the K largest hospitals by number of visitors.
+### Simulations
 
 ```{r}
 div(style = "display: flex;",
-  actionButton("run", "Run N simulations", style = "margin-right: 5px;"),
-  div(style = "width: 100px;", numericInput("rep", label = NULL, value = 10, min = 1,))
+  actionButton("select_top_n", "Select K largest hospitals", style = "margin-right: 5px;"),
+  div(style = "width: 70px;", numericInput("top_n", label = NULL, value = 1,
+            min = 1, max = length(Hospital_visitors$Hospital)))
 )
 selectizeInput(
   inputId = "selected_hospitals",
@@ -78,13 +68,30 @@ selectizeInput(
   options = list(placeholder = "Select hospitals...")
 )
 div(style = "display: flex;",
-  actionButton("select_top_n", "Select K largest hospitals", style = "margin-right: 5px;"),
-  div(style = "width: 100px;", numericInput("top_n", label = NULL, value = 1,
-            min = 1, max = length(Hospital_visitors$Hospital)))
+  actionButton("run", "Run N simulations", style = "margin-right: 5px;"),
+  div(style = "width: 70px;", numericInput("rep", label = NULL, value = 10, min = 1,))
 )
 ```
 
-###
+### Costs
+
+```{r}
+selectInput(
+  inputId = "y_axis",
+  label = "Y-axis of costs plot",
+  choices = c(
+    "Cases at detection" = "cases",
+    "Emergency department presentations at detection" = "hosp",
+    "Time until detection" = "time"
+    ),
+  multiple = FALSE
+)
+```
+
+Simulations
+=======================================================================
+
+### The blue dot shows the median number of days and number of infections upon detection by Threat Net Israel, and error bars show the interquartile range. The grey lines show individual simulation runs.
 ```{r}
 # set figure height
 simulated_data <- eventReactive(input$run, {
@@ -115,30 +122,7 @@ renderPlot({
 Cost-effectiveness
 =======================================================================
 
-Row
------------------------------------------------------------------------
-
-### Costs of ThreatNet Israel
-Costs include upfront and running costs, annualized over a ten-year time horizon. For details see the associated article.
-The blue line is the median outcome, and the grey area shows the 10th and 90th percentile of the outcomes.
-The stochastic simulation was pre-run 1000 times for each cost level.
-You can choose whether to display time until detection or cases at detection on the y-axis.
-
-
-```{r}
-selectInput(
-  inputId = "y_axis",
-  label = "Y-axis of costs plot",
-  choices = c(
-    "Cases at detection" = "cases",
-    "Emergency department presentations at detection" = "hosp",
-    "Time until detection" = "time"
-    ),
-  multiple = FALSE
-)
-```
-
-###
+### The blue line is the median outcome of 1000 pre-run simulations, and the grey area shows the interquartile range. In the sidebar, you can select a metric to show on the y-axis.
 ```{r}
 subset_data <- reactive({
   results %>% 
