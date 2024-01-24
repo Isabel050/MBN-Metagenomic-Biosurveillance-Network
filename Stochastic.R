@@ -89,39 +89,39 @@ run_SEIR <- function(
 }
 
 plot_SEIR <- function(data) {
-  # Base plot
-  p <- ggplot(data, aes(x = time, y = cum_I, group = rep)) +
-    geom_line(aes(color = rep != 0, linewidth = rep != 0)) +
-    scale_linewidth_manual(values = c(1.5, 0.5)) +
-    labs(x = "Days since first case", y = "Cumulative infections") +
-    # Fix the axes to be the same for all plots
-    scale_x_continuous(
-      breaks = seq(0, 100, by = 20),
-      minor_breaks = seq(0, 100, by = 10), limits = c(0, 100)
-    ) +
-    scale_y_continuous(
-      breaks = seq(0, 500, by = 100),
-      minor_breaks = seq(0, 500, by = 50)
-    ) +
-    coord_cartesian(ylim = c(0, 500)) +
-    theme_light() +
-    scale_color_manual(values = c("blue", "grey80")) +
-    theme(
-      axis.title = element_text(size = 30),
-      axis.text = element_text(size = 20),
-      legend.position = "none"
-    )
-
-  # Highlight points where the outbreak is detected in stochastic runs
+  # Calculate relevant summary statistics
   last <- data %>%
     group_by(rep) %>%
     filter(!is.na(halted)) %>%
     slice_tail(n = 1)
-  percentile_y <- quantile(last$cum_I, probs = c(0.1, 0.5, 0.9))
-  percentile_x <- quantile(last$time, probs = c(0.1, 0.5, 0.9))
-  p <- p + geom_hline(yintercept = percentile_y, linetype = "dashed", color = "black") +
-    geom_vline(xintercept = percentile_x, linetype = "dashed", color = "black") +
-    geom_point(data = last, aes(x = time, y = cum_I), size = 5, color = "red")
+  percentile_y <- quantile(last$cum_I, probs = c(0.25, 0.5, 0.75))
+  percentile_x <- quantile(last$time, probs = c(0.25, 0.5, 0.75))
+  percentiles <- data.frame(time = percentile_x, cum_I = percentile_y)
+  y_lim <- 500 * ceiling(percentile_y[3] / 500)
+
+  # Plot the individual simulation runs
+  p <- ggplot(data = data[data$rep != 0, ]) +
+    geom_line(aes(x = time, y = cum_I, group = rep), color = "grey80") +
+    labs(x = "Days since first case", y = "Cumulative infections") +
+    coord_cartesian(xlim = c(0, 100), ylim = c(0, y_lim)) +
+    theme_light() +
+    scale_color_manual(values = c("grey80")) +
+    theme(
+      axis.title = element_text(size = 30),
+      axis.text = element_text(size = 20),
+      legend.position = "none",
+      panel.grid.major = element_blank(), # Removes major grid lines
+      panel.grid.minor = element_blank(), # Removes minor grid lines
+      panel.background = element_blank()
+    )
+
+  # Add median dot and IQR error bars
+  p <- p +
+    geom_errorbar(aes(x = percentile_x[2], ymin = percentile_y[1], ymax = percentile_y[3]), 
+                  width = 4, size = 1, linetype = "dashed") +
+    geom_errorbarh(aes(y = percentile_y[2], xmin = percentile_x[1], xmax = percentile_x[3]), 
+                   height = 20, size = 1, linetype = "dashed") +
+    geom_point(data = percentiles[2, ], aes(x = time, y = cum_I), size=5, shape=16, color="blue") #Dot
   return(p)
 }
 
@@ -162,44 +162,23 @@ Cost <- function(hospitals = 1, years = 10, d = 0.03) {
 
 # Function to plot the cost vs. detection time or infections
 plot_cost <- function(results) {
+  y_lim <- 50 * ceiling(max(results$q50) / 50)
+  y_label <- str_replace_all(results$output[1],
+  c("cases" = "Infections until detection",
+    "hosp" = "Hospitalisations until detection",
+    "time" = "Days until detection"))
   p <- ggplot(results, aes(x = cost_mil_annu, group = interaction(t, d))) +
     geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey80", alpha = 0.5) +
     geom_line(aes(y = q50), linewidth = 1.5, color = "blue") +
-    scale_x_continuous(
-      breaks = seq(0, 120, by = 20),
-      minor_breaks = seq(0, 120, by = 10), limits = c(0, 120)
-    ) +
-    labs(x = "Cost (USD millions)") +
+    scale_x_continuous(breaks = seq(0, 120, by = 20), limits = c(0, 120)) +
+    coord_cartesian(ylim = c(0, y_lim)) +
+    labs(x = "Cost (USD millions)", y = y_label) +
     theme_minimal() +
     theme(
       axis.title = element_text(size = 30),
       axis.text = element_text(size = 20),
       legend.position = "none"
     )
-  if (results$output[1] == "cases") {
-    p <- p + labs(y = "Infections until detection") +
-      scale_y_continuous(
-        breaks = seq(0, 1000, by = 200),
-        minor_breaks = seq(0, 1000, by = 100)
-      ) +
-      coord_cartesian(ylim = c(0, 1000))
-  }
-  if (results$output[1] == "hosp") {
-    p <- p + labs(y = "Hospitalisations until detection") +
-      scale_y_continuous(
-        breaks = seq(0, 50, by = 10),
-        minor_breaks = seq(0, 50, by = 5)
-      ) +
-      coord_cartesian(ylim = c(0, 50))
-  }
-  if (results$output[1] == "time") {
-    p <- p + labs(y = "Days until detection") +
-      scale_y_continuous(
-        breaks = seq(0, 100, by = 20),
-        minor_breaks = seq(0, 100, by = 10)
-      ) +
-      coord_cartesian(ylim = c(0, 100))
-  }
   return(p)
 }
 
