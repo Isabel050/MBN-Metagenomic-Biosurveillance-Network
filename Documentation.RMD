@@ -1,6 +1,6 @@
 
 ###
-This model is an Isreal-focused update of the one presented in Sharma S, Pannu J, Chorlton S, Swett JL, Ecker DJ. Threat Net: A Metagenomic Surveillance Network for  Biothreat Detection and Early Warning. Health Security. 2023 Jun 27. doi: 10.1089/hs.2022.0160.
+This model is an update of the one presented in Sharma S, Pannu J, Chorlton S, Swett JL, Ecker DJ. Threat Net: A Metagenomic Surveillance Network for  Biothreat Detection and Early Warning. Health Security. 2023 Jun 27. doi: 10.1089/hs.2022.0160.
 
 
 SEIR System:

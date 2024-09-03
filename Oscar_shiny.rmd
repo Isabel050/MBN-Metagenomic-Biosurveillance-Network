@@ -1,5 +1,5 @@
 ---
-title: "ThreatNet Israel"
+title: "Metagenomic Biosurveillance Network"
 author: "Meusel et al."
 output:
   flexdashboard::flex_dashboard:
@@ -61,7 +61,7 @@ div(style = "display: flex;",
 )
 selectizeInput(
   inputId = "selected_hospitals",
-  label = "Hospitals participating in Threatnet",
+  label = "Hospitals participating in MBN",
   choices = Hospital_visitors$Hospital,
   selected = Hospital_visitors$Hospital[1:6],
   multiple = TRUE,
@@ -91,7 +91,7 @@ selectInput(
 Simulations
 =======================================================================
 
-### The blue dot shows the median number of days and number of infections upon detection by Threat Net Israel, and error bars show the interquartile range. The grey lines show individual simulation runs.
+### The blue dot shows the median number of days and number of infections upon detection by MBN, and error bars show the interquartile range. The grey lines show individual simulation runs.
 ```{r}
 # set figure height
 simulated_data <- eventReactive(input$run, {

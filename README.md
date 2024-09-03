@@ -8,8 +8,10 @@ File descriptions:
 - Oscar_shiny.Rmd creates the web interface
 - Documentation.Rmd is part of the web interface
 - figures.R creates the tables and figures that appear in the manuscript
-- Hospital Visitors.csv is data on Israel's health system used in the model
+- Hospital Visitors.csv is data on the health system used in the model, currently Israel.
 - Results.RData is the output of many simulation runs used in the web app, to save computation time
+
+Note that customizing the model for other countries requires new values for the hospitals (or other relevant testing locations,) in the indicated csv, as well as updated assumptions about costs contained in stochastic.R
 
 Technical SEIR details:
 The meanings of some compartments are nonobvious, so to clarify, we are defining:
