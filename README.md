@@ -1,6 +1,6 @@
-# ThreatNet Israel
+# Metagenomic Biosurveillance Network
 
-The web user interface for this model is available at https://oscar-delaney.shinyapps.io/ThreatNetIsrael/
+The web user interface for this model is available at https://oscar-delaney.shinyapps.io/MBN_app
 The associated paper is currently unpublished, but we will link to it when it is available as a preprint, and once published.
 
 File descriptions:
@@ -23,6 +23,21 @@ The meanings of some compartments are nonobvious, so to clarify, we are defining
 - Hospitalized (H) = attending an emergency room because of the pathogen, and possibly being tested through ThreatNet. Cannot infect others due to physical isolation.
 - Threat-net tested positive (T) = When people enter H they are tested, and some fraction of them will test positive, these are recorded in T.
 
-Using dashed liens to represent probabilities, and solid lines to represent rates, the transition graph is given by:
+Using dashed lines to represent probabilities, and solid lines to represent rates, the transition graph is given by:
 
 ![image](https://github.com/Isabel050/Isabel/assets/114768931/bc92f01e-979a-49e7-9579-913a750822c9)
+
+To deploy the Shiny app, use the code:
+
+```{r}
+rsconnect::deployApp(
+  appFiles = c(
+    "Oscar_shiny.rmd",                      # Your main app file
+    "results.RData",                        # Data file
+    "Stochastic.R",                         # Helper R script
+    "params.csv", "Hospital Visitors.csv",  # Parameters
+    "Documentation.RMD"                     # Documentation
+  ),
+  appName = "MBN_app"
+)
+```

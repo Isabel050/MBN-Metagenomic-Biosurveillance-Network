@@ -21,7 +21,7 @@ library(tidyverse)
 library(shiny)
 library(flexdashboard)
 
-source("Stochastic.r", local = TRUE)
+source("Stochastic.R", local = TRUE)
 load("results.RData")
 ```
 

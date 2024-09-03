@@ -1,0 +1,10 @@
+name: MBN_app
+title:
+username: oscar-delaney
+account: oscar-delaney
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 12589694
+bundleId: 9057597
+url: https://oscar-delaney.shinyapps.io/MBN_app/
+version: 1
