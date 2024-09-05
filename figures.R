@@ -1,4 +1,5 @@
 library(gt)
+library(patchwork)
 source("Stochastic.r", local = TRUE)
 load("results.RData")
 # load("full_data.RData")
@@ -68,13 +69,16 @@ ggsave("outputs/threshold.jpg", width = 12, height = 12)
 
 results_days <- results %>%
     filter(d == "SARS-CoV-2", t == 1, output == "time")
-plot_cost(results_days)
+plot_days <- plot_cost(results_days)
 ggsave("outputs/cost_days.jpg", width = 12, height = 12)
 
 results_cases <- results %>%
     filter(d == "SARS-CoV-2", t == 1, output == "cases")
-plot_cost(results_cases)
+plot_cases <- plot_cost(results_cases)
 ggsave("outputs/cost_cases.jpg", width = 12, height = 12)
+
+plot_cases_days <- plot_cases | plot_days
+ggsave("outputs/cost_cases_days.jpg", width = 20, height = 12)
 
 results_hosp <- results %>%
     filter(d == "SARS-CoV-2", t == 1, output == "hosp")
