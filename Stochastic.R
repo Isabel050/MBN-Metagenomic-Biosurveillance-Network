@@ -88,6 +88,44 @@ run_SEIR <- function(
   return(bind_rows(results_det, results_sto))
 }
 
+# New function for running SEIR with custom parameters
+run_SEIR_custom <- function(
+  custom_params, # custom parameter set defined by user
+  rep = 100, # number of replicates (0 if only deterministic is wanted)
+  tau = 0.77, # sensitivity of mNGS
+  mu = 1, # proportion of emergency rooms connected to ThreatNet
+  threshold = 1, # number of detections needed to declare outbreak
+  time = 100, # number of days to run the simulation
+  init = c(S = 6.5e6, E = 1, I = 0, R = 0, P = 0, H = 0, T = 0)
+) {
+  # Create parameter vector for simulation
+  params <- custom_params
+  params["tau"] <- tau
+  params["mu"] <- mu
+  params["threshold"] <- threshold
+
+  # Deterministic simulation
+  out_det <- ode(y = init, times = seq(0, time, by = 1), func = SEIR_ode, parms = params)
+  results_det <- tibble(
+    time = out_det[, "time"],
+    cum_I = out_det[, "I"] + out_det[, "R"], # cumulative infections
+    H = out_det[, "H"], # hospitalisations
+    rep = 0, # later we will extract the deterministic solution as rep == 0
+    halted = NA # the deterministic solution continues until the end
+  )
+
+  # Stochastic simulations
+  plan(multisession) # works on windows and linux
+  results_sto <- bind_rows(future_lapply(seq_len(rep), function(i) {
+    out <- ssa.adaptivetau(init, transitions, SEIRrates, params, tf = time, halting = length(transitions))
+    tibble_data <- as_tibble(out$dynamics) %>%
+      mutate(rep = i, cum_I = I + R, halted = out$haltingTransition) %>%
+      select(time, cum_I, H, rep, halted)
+  }, future.seed = TRUE)) # future.seed is needed for parallelization
+
+  return(bind_rows(results_det, results_sto))
+}
+
 plot_SEIR <- function(data) {
   # Calculate relevant summary statistics
   last <- data %>%

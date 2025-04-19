@@ -1,6 +1,5 @@
 ---
 title: "Metagenomic Biosurveillance Network"
-author: "Meusel et al."
 output:
   flexdashboard::flex_dashboard:
     theme: 
@@ -23,6 +22,15 @@ library(flexdashboard)
 
 source("Stochastic.R", local = TRUE)
 load("results.RData")
+
+# Define disease parameter names and their descriptions
+disease_params <- c(
+  "beta" = "Transmission rate (contacts per day)",
+  "sigma" = "Progression rate (1/days in E)",
+  "gamma" = "Recovery rate (1/days in I)",
+  "delta" = "Proportion of infections requiring hospital care",
+  "theta" = "Rate of hospital presentation (1/days until seeking care)"
+)
 ```
 
 
@@ -33,13 +41,68 @@ Sidebar {.sidebar}
 ### Model Inputs
 
 ```{r}
+# Add "Custom" option to the disease scenarios
+choices <- c(row.names(all_params), "Custom")
+
 selectInput(
   inputId = "Disease_Scenario",
   label = "Disease Scenario",
-  choices = row.names(all_params),
+  choices = choices,
   selected = 1,
   multiple = FALSE
 )
+
+# UI for custom parameters - initially hidden
+conditionalPanel(
+  condition = "input.Disease_Scenario == 'Custom'",
+  h4("Custom Disease Parameters"),
+  
+  numericInput(
+    inputId = "beta_custom",
+    label = disease_params["beta"],
+    value = 0.3,
+    min = 0.01,
+    max = 2,
+    step = 0.01
+  ),
+  
+  numericInput(
+    inputId = "sigma_custom",
+    label = disease_params["sigma"],
+    value = 0.2,
+    min = 0.01,
+    max = 1,
+    step = 0.01
+  ),
+  
+  numericInput(
+    inputId = "gamma_custom",
+    label = disease_params["gamma"],
+    value = 0.1,
+    min = 0.01,
+    max = 1,
+    step = 0.01
+  ),
+  
+  numericInput(
+    inputId = "delta_custom",
+    label = disease_params["delta"],
+    value = 0.05,
+    min = 0.001,
+    max = 0.5,
+    step = 0.001
+  ),
+  
+  numericInput(
+    inputId = "theta_custom",
+    label = disease_params["theta"],
+    value = 0.5,
+    min = 0.01,
+    max = 1,
+    step = 0.01
+  )
+)
+
 sliderInput(
   inputId = "Threshold",
   label = "Detections needed to confirm disease",
@@ -93,15 +156,36 @@ Simulations
 
 ### The blue dot shows the median number of days and number of infections upon detection by MBN, and error bars show the interquartile range. The grey lines show individual simulation runs.
 ```{r}
-# set figure height
-simulated_data <- eventReactive(input$run, {
-  # Calculate average rate for the selected hospitals
-  run_SEIR(
-    disease_name = input$Disease_Scenario[[1]],
-    rep = input$rep,
-    threshold = input$Threshold,
-    mu = coverage(input$selected_hospitals)
-  )
+# Modified function to handle custom disease parameters
+simulatedData <- eventReactive(input$run, {
+  # Check if custom disease was selected
+  if (input$Disease_Scenario == "Custom") {
+    # Create a custom parameter set
+    custom_params <- c(
+      beta = input$beta_custom,
+      sigma = input$sigma_custom,
+      gamma = input$gamma_custom,
+      delta = input$delta_custom,
+      theta = input$theta_custom,
+      tau = 0.77  # Default sensitivity
+    )
+    
+    # Run the custom model
+    run_SEIR_custom(
+      custom_params = custom_params,
+      rep = input$rep,
+      threshold = input$Threshold,
+      mu = coverage(input$selected_hospitals)
+    )
+  } else {
+    # Run with predefined disease
+    run_SEIR(
+      disease_name = input$Disease_Scenario,
+      rep = input$rep,
+      threshold = input$Threshold,
+      mu = coverage(input$selected_hospitals)
+    )
+  }
 })
 
 observeEvent(input$select_top_n, {
@@ -114,10 +198,11 @@ observeEvent(input$select_top_n, {
 })
 
 renderPlot({
-  data <- simulated_data()
+  data <- simulatedData()
   plot_SEIR(data)
 })
 ```
+
 
 Cost-effectiveness
 =======================================================================
@@ -125,17 +210,36 @@ Cost-effectiveness
 ### The blue line is the median outcome of 1000 pre-run simulations, and the grey area shows the interquartile range. In the sidebar, you can select a metric to show on the y-axis.
 ```{r}
 subset_data <- reactive({
-  results %>% 
-    filter(d == input$Disease_Scenario, t == input$Threshold, output == input$y_axis)
+  # For custom disease, don't attempt to show pre-computed cost effectiveness
+  if (input$Disease_Scenario == "Custom") {
+    # Return empty dataframe or show a message
+    return(NULL)
+  } else {
+    results %>% 
+      filter(d == input$Disease_Scenario, t == input$Threshold, output == input$y_axis)
+  }
 })
 
-renderPlot({plot_cost(subset_data())})
+renderPlot({
+  data <- subset_data()
+  if (is.null(data) || nrow(data) == 0) {
+    # Create an empty plot with a message for custom disease
+    ggplot() + 
+      annotate("text", x = 0.5, y = 0.5, 
+               label = "Cost-effectiveness plot not available for custom disease parameters.\nRun simulations with pre-defined diseases to view this plot.", 
+               size = 6) +
+      theme_void() +
+      xlim(0, 1) + ylim(0, 1)
+  } else {
+    plot_cost(data)
+  }
+})
 ```
+
 
 Model Documentation
 =======================================================================
 
 Row
 -----------------------------------------------------------------------
-```{r test, child="Documentation.RMD", eval=TRUE, local=TRUE}
-```
+```{r test, child="Documentation.RMD", eval=TRUE, local=TRUE}```
