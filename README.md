@@ -31,6 +31,9 @@ To deploy the Shiny app, use the code:
 
 ```{r}
 rsconnect::deployApp(
+  appDir   = ".",
+  account  = "biosurveillance",
+  server   = "shinyapps.io",
   appFiles = c(
     "Oscar_shiny.rmd",                      # Your main app file
     "results.RData",                        # Data file

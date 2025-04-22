@@ -5,6 +5,6 @@ account: biosurveillance
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 14560931
-bundleId: 10143471
+bundleId: 10159381
 url: https://biosurveillance.shinyapps.io/MBN_app/
 version: 1

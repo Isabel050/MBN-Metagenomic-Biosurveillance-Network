@@ -140,7 +140,7 @@ plot_SEIR <- function(data) {
   # Plot the individual simulation runs
   p <- ggplot(data = data[data$rep != 0, ]) +
     geom_line(aes(x = time, y = cum_I, group = rep), color = "grey80") +
-    labs(x = "Days since first case", y = "Cumulative infections") +
+    labs(x = "Days since first case", y = "Cumulative infections in population") +
     coord_cartesian(xlim = c(0, 100), ylim = c(0, y_lim)) +
     theme_light() +
     scale_color_manual(values = c("grey80")) +
@@ -202,9 +202,9 @@ Cost <- function(hospitals = 1, years = 10, d = 0.03) {
 plot_cost <- function(results) {
   y_lim <- 50 * ceiling(max(results$q50) / 50)
   y_label <- str_replace_all(results$output[1],
-  c("cases" = "Infections until detection",
-    "hosp" = "Hospitalisations until detection",
-    "time" = "Days until detection"))
+  c("cases" = "Infections in population until detection",
+    "hosp" = "ED presentations until detection",
+    "time" = "Time (days) until detection"))
   p <- ggplot(results, aes(x = cost_mil_annu, group = interaction(t, d))) +
     geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey80", alpha = 0.5) +
     geom_line(aes(y = q50), linewidth = 1.5, color = "blue") +

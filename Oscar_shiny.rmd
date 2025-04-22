@@ -143,9 +143,9 @@ selectInput(
   inputId = "y_axis",
   label = "Y-axis of costs plot",
   choices = c(
-    "Cases at detection" = "cases",
-    "Emergency department presentations at detection" = "hosp",
-    "Time until detection" = "time"
+    "Infections in population until detection" = "cases",
+    "ED presentations until detection" = "hosp",
+    "Time (days) until detection" = "time"
     ),
   multiple = FALSE
 )
@@ -154,7 +154,7 @@ selectInput(
 Simulations
 =======================================================================
 
-### The blue dot shows the median number of days and number of infections upon detection by MBN, and error bars show the interquartile range. The grey lines show individual simulation runs.
+### The blue dot shows the median number of days and number of infections in the total population upon detection by MBN, and error bars show the interquartile range. The grey lines show individual simulation runs.
 ```{r}
 # Modified function to handle custom disease parameters
 simulatedData <- eventReactive(input$run, {
@@ -242,4 +242,5 @@ Model Documentation
 
 Row
 -----------------------------------------------------------------------
-```{r test, child="Documentation.RMD", eval=TRUE, local=TRUE}```
+```{r test, child="Documentation.RMD", eval=TRUE, local=TRUE}
+```
