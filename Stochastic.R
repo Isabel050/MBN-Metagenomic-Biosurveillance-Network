@@ -55,11 +55,11 @@ SEIR_ode <- function(t, y, params) {
 run_SEIR <- function(
   disease_name, # name of disease to run
   rep = 100, # number of replicates (0 if only deterministic is wanted)
-  tau = 0.77, # sensitivity of mNGS
+  tau = 0.75, # sensitivity of mNGS
   mu = 1, # proportion of emergency rooms connected to ThreatNet
   threshold = 1, # number of detections needed to declare outbreak
   time = 100, # number of days to run the simulation
-  init = c(S = 6.5e6, E = 1, I = 0, R = 0, P = 0, H = 0, T = 0)
+  init = c(S = 9.7e6, E = 1, I = 0, R = 0, P = 0, H = 0, T = 0)
 ) {
   params <- all_params[disease_name, ]
   params["tau"] <- tau
@@ -92,11 +92,11 @@ run_SEIR <- function(
 run_SEIR_custom <- function(
   custom_params, # custom parameter set defined by user
   rep = 100, # number of replicates (0 if only deterministic is wanted)
-  tau = 0.77, # sensitivity of mNGS
+  tau = 0.75, # sensitivity of mNGS
   mu = 1, # proportion of emergency rooms connected to ThreatNet
   threshold = 1, # number of detections needed to declare outbreak
   time = 100, # number of days to run the simulation
-  init = c(S = 6.5e6, E = 1, I = 0, R = 0, P = 0, H = 0, T = 0)
+  init = c(S = 9.7e6, E = 1, I = 0, R = 0, P = 0, H = 0, T = 0)
 ) {
   # Create parameter vector for simulation
   params <- custom_params
@@ -187,8 +187,8 @@ detection_time <- function(data) {
 Cost <- function(hospitals = 1, years = 10, d = 0.03) {
   # Costs per site:
   Cost_Sequencers <- 450000
-  Cost_Staff <- 225000
-  Cost_Floor_Space <- 0 # Get value.
+  Cost_Staff <- 227000
+  Cost_Floor_Space <- 23000
   Cost_Compute_Storage <- 24000
   Cost_Sequencing_Reagents_Yearly <- 2300 * 365 * 2 # 2 Machines, both run 1x/day
   Costs_Reagents_Per_Sample <- 60 # Need to multiply by number of patients
@@ -221,7 +221,7 @@ plot_cost <- function(results) {
 }
 
 # # Create a dataframe with all combinations of parameters
-# takes ~2 hours, so leave commented unless needed
+# # takes ~1 hour, so leave commented unless needed
 # results <- expand.grid(d = row.names(all_params), t = c(1, 3, 5),
 #   h = 1:nrow(Hospital_visitors))
 # results$cost_mil_annu <- Cost(results$h) / 1e6 / 10
