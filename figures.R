@@ -74,7 +74,11 @@ ggsave("outputs/cost_days.jpg", width = 12, height = 12)
 
 results_cases <- results %>%
     filter(d == "SARS-CoV-2", t == 1, output == "cases")
-plot_cases <- plot_cost(results_cases)
+plot_cases <- plot_cost(results_cases) + 
+    scale_y_continuous(
+        breaks = seq(0, 1000, by = 200),
+    ) +
+    coord_cartesian(ylim = c(0, 1000))
 ggsave("outputs/cost_cases.jpg", width = 12, height = 12)
 
 plot_cases_days <- plot_cases | plot_days

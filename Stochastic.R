@@ -186,12 +186,12 @@ detection_time <- function(data) {
 # Find the cost for a given number of hospitals
 Cost <- function(hospitals = 1, years = 10, d = 0.03) {
   # Costs per site:
-  Cost_Sequencers <- 450000
+  Cost_Sequencers <- 420000
   Cost_Staff <- 227000
   Cost_Floor_Space <- 23000
-  Cost_Compute_Storage <- 24000
-  Cost_Sequencing_Reagents_Yearly <- 2300 * 365 * 2 # 2 Machines, both run 1x/day
-  Costs_Reagents_Per_Sample <- 60 # Need to multiply by number of patients
+  Cost_Compute_Storage <- 4000
+  Cost_Sequencing_Reagents_Yearly <- 2736 * 365 * 2 # 2 Machines, both run 1x/day
+  Costs_Reagents_Per_Sample <- 50 # Need to multiply by number of patients
   Patients_Per_Year <- 50000 # Current number. This might need to change dynamically? (Maybe todo: put in function definition and call it again.)
   Yearly_cost <- Cost_Staff + Cost_Compute_Storage + Cost_Sequencing_Reagents_Yearly + (Costs_Reagents_Per_Sample * Patients_Per_Year)
 
